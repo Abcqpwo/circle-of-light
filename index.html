@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <title>光圈之外</title>
-<link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23050506'/%3E%3Ccircle cx='32' cy='32' r='11' fill='%23e6dfc9'/%3E%3C/svg%3E">
 <style>
 :root{
   --ink:#050506;
@@ -12,8 +12,8 @@
   --bone-dim:#7e7b72;
   --line:rgba(216,211,197,.22);
   --blood:#a9453a;
-  --serif:"Noto Serif SC","Songti SC","SimSun",serif;
-  --sans:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --serif:"Songti SC","SimSun","STSong",serif;
+  --sans:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",system-ui,sans-serif;
 }
 *,*::before,*::after{box-sizing:border-box}
 html,body{height:100%;margin:0;background:#000;overflow:hidden}
@@ -65,6 +65,62 @@ body{
 }
 .icon-btn:hover{border-color:rgba(216,211,197,.42);color:var(--bone)}
 .icon-btn svg{width:14px;height:14px;display:block}
+.icon-btn.sound{right:max(72px, calc(env(safe-area-inset-right) + 54px))}
+.icon-btn.off{opacity:.38}
+
+/* 提示按钮（左上角）：代价有点贵 */
+.hint-btn{
+  position:absolute;left:max(18px, env(safe-area-inset-left));top:max(18px, env(safe-area-inset-top));
+  height:44px;padding:0 15px;display:flex;align-items:center;gap:7px;
+  background:transparent;border:1px solid rgba(216,211,197,.16);
+  color:rgba(216,211,197,.62);cursor:pointer;pointer-events:auto;
+  font-family:var(--sans);font-size:11px;letter-spacing:.22em;text-indent:.22em;
+  transition:border-color .25s,color .25s,background .25s;
+  -webkit-tap-highlight-color:transparent;
+}
+.hint-btn:hover{border-color:rgba(169,69,58,.6);color:#d8d3c5;background:rgba(169,69,58,.08)}
+.hint-btn .q{
+  font-family:var(--serif);font-size:15px;line-height:1;
+  letter-spacing:0;text-indent:0;color:rgba(190,72,56,.95);
+}
+.guide-tip{
+  position:absolute;left:max(18px, env(safe-area-inset-left));
+  top:calc(max(18px, env(safe-area-inset-top)) + 52px);
+  font-size:10px;letter-spacing:.18em;color:rgba(196,74,58,.85);
+  opacity:0;transition:opacity .45s ease;pointer-events:none;
+  white-space:nowrap;
+}
+.guide-tip.on{opacity:1}
+
+/* 电量条：低电量时呼吸闪烁 */
+.battery{
+  position:absolute;left:max(18px, env(safe-area-inset-left));
+  bottom:max(34px, calc(env(safe-area-inset-bottom) + 28px));
+  display:flex;align-items:center;gap:9px;opacity:.8;
+}
+.battery .battery-label{
+  font-size:10px;letter-spacing:.2em;text-indent:.2em;
+  color:rgba(216,211,197,.46);
+}
+.battery-track{
+  width:66px;height:5px;position:relative;
+  background:rgba(216,211,197,.08);
+  border:1px solid rgba(216,211,197,.18);
+}
+.battery-fill{
+  position:absolute;left:0;top:0;bottom:0;width:100%;
+  background:rgba(228,204,158,.55);
+  transition:width .25s linear,background .3s ease;
+}
+.battery.low .battery-fill{background:rgba(198,60,46,.8)}
+.battery.low{animation:batteryBreath 1.15s ease-in-out infinite}
+@keyframes batteryBreath{0%,100%{opacity:.5}50%{opacity:1}}
+
+/* 小屏：说明文字抬高，避开左下角电量条 */
+@media (max-width: 560px){
+  .hint{bottom:max(66px, calc(env(safe-area-inset-bottom) + 58px));font-size:11px;letter-spacing:.18em;}
+  .battery-track{width:54px;}
+}
 
 /* 提示语（它靠近时） */
 .notice{
@@ -160,9 +216,46 @@ body{
 .btn:hover{border-color:rgba(216,211,197,.55);background:rgba(216,211,197,.05)}
 .btn:active{background:rgba(216,211,197,.09)}
 .btn:focus-visible{outline:1px solid rgba(216,211,197,.6);outline-offset:5px}
+.btn.ghost{
+  margin-top:10px;
+  border-color:rgba(216,211,197,.16);
+  color:rgba(216,211,197,.52);
+  font-size:11px;letter-spacing:.26em;
+}
+.btn.ghost:hover{border-color:rgba(216,211,197,.34);color:rgba(216,211,197,.78)}
 
 #pauseScreen,#endScreen{background:rgba(2,2,3,.82)}
 #pauseScreen{backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+
+/* 提示视频层（大便超人） */
+#hintScreen{padding:0;background:#000;z-index:12}
+#hintScreen[hidden]{display:none}
+#hintScreen:not([hidden]){display:block}
+#poopCanvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+.video-top{
+  position:fixed;left:max(16px, env(safe-area-inset-left));
+  right:max(16px, env(safe-area-inset-right));
+  top:max(16px, env(safe-area-inset-top));
+  display:flex;align-items:flex-start;justify-content:space-between;
+  pointer-events:none;z-index:13;
+}
+.video-timer{
+  font-size:11px;letter-spacing:.2em;text-indent:.2em;
+  color:#ffe9c2;
+  background:rgba(10,8,7,.72);
+  border:1px solid rgba(255,225,180,.24);
+  padding:9px 14px;
+  font-variant-numeric:tabular-nums;
+}
+.btn.small{
+  height:42px;padding:0 22px;font-size:12px;letter-spacing:.22em;text-indent:.22em;
+  pointer-events:auto;
+  background:rgba(10,8,7,.86);
+  border:1px solid rgba(255,225,180,.7);
+  color:#ffe9c2;
+}
+.btn.small:hover{background:rgba(28,20,16,.92);border-color:#ffe9c2}
+.btn.small[hidden]{display:none}
 
 .panel{
   display:flex;flex-direction:column;align-items:center;
@@ -218,6 +311,21 @@ body{
 
 <div class="hud" id="hud" hidden>
   <div class="hint" id="hint">WASD / 方向键 移动 · 找到出口</div>
+  <button class="hint-btn" id="hintBtn" aria-label="提示">
+    <span class="q">?</span>提示
+  </button>
+  <div class="guide-tip" id="guideTip"></div>
+  <div class="battery" id="batteryWrap">
+    <span class="battery-label">电量</span>
+    <span class="battery-track"><span class="battery-fill" id="batteryFill"></span></span>
+  </div>
+  <button class="icon-btn sound" id="soundBtn" aria-label="声音开关">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" id="soundIcon">
+      <path d="M4 9.5h3l4-3.2v11.4l-4-3.2H4z" fill="rgba(216,211,197,.7)"></path>
+      <path d="M15.4 8.6a4.6 4.6 0 0 1 0 6.8" stroke="rgba(216,211,197,.7)" stroke-width="1.5" stroke-linecap="round"></path>
+      <path d="M17.9 6.2a8 8 0 0 1 0 11.6" stroke="rgba(216,211,197,.45)" stroke-width="1.5" stroke-linecap="round"></path>
+    </svg>
+  </button>
   <button class="icon-btn" id="pauseBtn" aria-label="暂停">
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <rect x="6" y="4.5" width="3.6" height="15" fill="rgba(216,211,197,.7)"></rect>
@@ -238,7 +346,7 @@ body{
     <h1 class="title">光圈之外</h1>
     <p class="sub">手电筒只照亮身前一小圈。迷宫深处有一扇门，找到它。</p>
     <button class="btn" id="startBtn">进入黑暗</button>
-    <p class="meta" id="titleMeta">WASD / 方向键 移动</p>
+    <p class="meta" id="titleMeta">WASD / 方向键 移动 · 迷路了就看左上角「提示」</p>
   </div>
 </section>
 
@@ -248,6 +356,7 @@ body{
     <h2 class="panel-title">你停住了</h2>
     <p class="panel-note">黑暗没有。</p>
     <button class="btn" id="resumeBtn">继续</button>
+    <button class="btn ghost" id="pauseRestartBtn">重新开始</button>
   </div>
 </section>
 
@@ -265,6 +374,14 @@ body{
   </div>
 </section>
 
+<section class="screen" id="hintScreen" hidden>
+  <canvas id="poopCanvas"></canvas>
+  <div class="video-top">
+    <span class="video-timer" id="videoTimer">20</span>
+    <button class="btn small" id="continueBtn" hidden>继续</button>
+  </div>
+</section>
+
 <script>
 (() => {
 'use strict';
@@ -276,6 +393,181 @@ const TAU = Math.PI * 2;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const rand = (a, b) => a + Math.random() * (b - a);
 const lerp = (a, b, t) => a + (b - a) * t;
+
+/* ============================================================
+   音频：WebAudio 实时合成（不依赖任何音频文件，断网也有声）
+============================================================ */
+const Sound = (() => {
+  let ac = null, master = null, amb = null, noiseBuf = null;
+  let enabled = true, poopTimer = null, poopStep = 0;
+
+  function init() {
+    try {
+      if (ac) {
+        if (ac.state === 'suspended') ac.resume().catch(() => {});
+        return true;
+      }
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return false;
+      ac = new AC();
+      master = ac.createGain();
+      master.gain.value = enabled ? 0.55 : 0;
+      master.connect(ac.destination);
+      const len = Math.floor(ac.sampleRate * 2);
+      noiseBuf = ac.createBuffer(1, len, ac.sampleRate);
+      const data = noiseBuf.getChannelData(0);
+      for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+      return true;
+    } catch (err) { ac = null; return false; }
+  }
+
+  const live = () => !!(ac && enabled);
+
+  function noise(dur, vol, type, freq, q, slideTo, delay) {
+    if (!live()) return;
+    try {
+      const src = ac.createBufferSource();
+      src.buffer = noiseBuf; src.loop = true;
+      const f = ac.createBiquadFilter();
+      f.type = type || 'lowpass';
+      const t0 = ac.currentTime + (delay || 0);
+      f.frequency.setValueAtTime(freq || 700, t0);
+      f.Q.value = q || 1;
+      const g = ac.createGain();
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.linearRampToValueAtTime(vol, t0 + Math.min(0.05, dur * 0.25));
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      if (slideTo) f.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
+      src.connect(f); f.connect(g); g.connect(master);
+      src.start(t0); src.stop(t0 + dur + 0.06);
+    } catch (err) { /* ignore */ }
+  }
+
+  function tone(freq, dur, vol, type, slideTo, delay) {
+    if (!live()) return;
+    try {
+      const o = ac.createOscillator();
+      o.type = type || 'sine';
+      const t0 = ac.currentTime + (delay || 0);
+      o.frequency.setValueAtTime(freq, t0);
+      const g = ac.createGain();
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.linearRampToValueAtTime(vol, t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
+      o.connect(g); g.connect(master);
+      o.start(t0); o.stop(t0 + dur + 0.05);
+    } catch (err) { /* ignore */ }
+  }
+
+  function ambience(on) {
+    if (!ac) return;
+    if (on && !amb && enabled) {
+      try {
+        const g = ac.createGain();
+        g.gain.value = 0.045;
+        g.connect(master);
+        const o1 = ac.createOscillator(); o1.type = 'sine'; o1.frequency.value = 41;
+        const o2 = ac.createOscillator(); o2.type = 'triangle'; o2.frequency.value = 63;
+        const lfo = ac.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.07;
+        const lg = ac.createGain(); lg.gain.value = 4;
+        lfo.connect(lg); lg.connect(o1.frequency);
+        const n = ac.createBufferSource(); n.buffer = noiseBuf; n.loop = true;
+        const nf = ac.createBiquadFilter(); nf.type = 'lowpass'; nf.frequency.value = 140;
+        const ng = ac.createGain(); ng.gain.value = 0.5;
+        n.connect(nf); nf.connect(ng); ng.connect(g);
+        o1.connect(g); o2.connect(g);
+        o1.start(); o2.start(); lfo.start(); n.start();
+        amb = { g: g, nodes: [o1, o2, lfo, n] };
+      } catch (err) { amb = null; }
+    } else if (!on && amb) {
+      try { amb.nodes.forEach((n) => { try { n.stop(); } catch (e) {} }); } catch (e) {}
+      try { amb.g.disconnect(); } catch (e) {}
+      amb = null;
+    }
+  }
+
+  const api = {
+    init: init,
+    get enabled() { return enabled; },
+    toggle() {
+      enabled = !enabled;
+      try { if (master) master.gain.value = enabled ? 0.55 : 0; } catch (e) {}
+      if (!enabled) ambience(false);
+      return enabled;
+    },
+    ambience: ambience,
+    step(vol) { noise(0.13, 0.028 * (vol || 1), 'lowpass', 330, 0.8); },
+    whoosh() { noise(0.8, 0.07, 'bandpass', 950, 1.3, 210); },
+    heart(vol) {
+      const v = vol || 1;
+      tone(54, 0.16, 0.05 * v, 'sine', 44);
+      noise(0.12, 0.03 * v, 'lowpass', 180);
+      tone(48, 0.13, 0.038 * v, 'sine', 40, 0.19);
+    },
+    screech() {
+      noise(0.45, 0.2, 'highpass', 1600, 0.7);
+      tone(920, 0.5, 0.15, 'sawtooth', 260);
+      tone(1480, 0.3, 0.08, 'square', 700, 0.04);
+      tone(70, 0.9, 0.1, 'sine', 30, 0.05);
+    },
+    creak() {
+      tone(96, 1.5, 0.045, 'sawtooth', 210);
+      noise(1.2, 0.026, 'bandpass', 520, 0.8);
+    },
+    knock() {
+      noise(0.16, 0.05, 'lowpass', 220, 1.2);
+      noise(0.16, 0.045, 'lowpass', 210, 1.2, null, 0.24);
+      noise(0.16, 0.038, 'lowpass', 200, 1.2, null, 0.48);
+    },
+    flick() { noise(0.07, 0.02, 'highpass', 2400); },
+    pickup() {
+      tone(660, 0.12, 0.05, 'triangle', 880);
+      tone(990, 0.18, 0.035, 'sine', null, 0.1);
+      noise(0.1, 0.02, 'highpass', 1200);
+    },
+    zap() {
+      noise(0.22, 0.04, 'bandpass', 2200, 2.2);
+      tone(180, 0.25, 0.04, 'sawtooth', 90);
+    },
+    drip() {
+      tone(760, 0.14, 0.02, 'sine', 300);
+      noise(0.2, 0.008, 'bandpass', 1400, 3);
+    },
+    breath() {
+      noise(0.85, 0.016, 'bandpass', 620, 0.9);
+      noise(0.7, 0.012, 'bandpass', 480, 0.8, null, 0.9);
+    },
+    win() {
+      tone(523, 0.7, 0.1, 'sine');
+      tone(659, 0.7, 0.075, 'sine', null, 0.12);
+      tone(784, 1.1, 0.06, 'sine', null, 0.26);
+    },
+    death() {
+      tone(74, 1.3, 0.14, 'sawtooth', 26);
+      noise(1.0, 0.11, 'lowpass', 340, 0.9, 90);
+    },
+    hintOpen() { tone(320, 0.18, 0.06, 'square'); tone(220, 0.22, 0.05, 'square', null, 0.1); },
+    guide() { tone(340, 0.6, 0.045, 'sine', 520); noise(1.4, 0.02, 'bandpass', 700, 1.2); },
+    poopStart() {
+      if (!live() || poopTimer) return;
+      const notes = [392, 523, 659, 523, 440, 587, 698, 587];
+      poopStep = 0;
+      poopTimer = setInterval(() => {
+        if (!live()) return;
+        const n = notes[poopStep % notes.length];
+        tone(n, 0.18, 0.05, 'square');
+        tone(n * 2, 0.1, 0.015, 'triangle', null, 0.02);
+        if (poopStep % 4 === 2) noise(0.09, 0.02, 'highpass', 1800);
+        poopStep++;
+      }, 210);
+    },
+    poopStop() {
+      if (poopTimer) { clearInterval(poopTimer); poopTimer = null; }
+    }
+  };
+  return api;
+})();
 
 /* ============================================================
    常量
@@ -309,6 +601,7 @@ const pauseScreen = document.getElementById('pauseScreen');
 const endScreen = document.getElementById('endScreen');
 const startBtn = document.getElementById('startBtn');
 const resumeBtn = document.getElementById('resumeBtn');
+const pauseRestartBtn = document.getElementById('pauseRestartBtn');
 const restartBtn = document.getElementById('restartBtn');
 const pauseBtn = document.getElementById('pauseBtn');
 const endEyebrow = document.getElementById('endEyebrow');
@@ -317,6 +610,15 @@ const endNote = document.getElementById('endNote');
 const statTime = document.getElementById('statTime');
 const statEvents = document.getElementById('statEvents');
 const statBest = document.getElementById('statBest');
+const hintBtn = document.getElementById('hintBtn');
+const guideTipEl = document.getElementById('guideTip');
+const batteryWrap = document.getElementById('batteryWrap');
+const batteryFill = document.getElementById('batteryFill');
+const soundBtn = document.getElementById('soundBtn');
+const hintScreen = document.getElementById('hintScreen');
+const poopCanvasEl = document.getElementById('poopCanvas');
+const videoTimerEl = document.getElementById('videoTimer');
+const continueBtn = document.getElementById('continueBtn');
 
 const D = { w: 0, h: 0, dpr: 1, scale: 1 };
 
@@ -406,6 +708,204 @@ function generateLevel() {
 }
 
 const cellCenter = (c) => ({ x: c.cx * CELL + CELL / 2, y: c.cy * CELL + CELL / 2 });
+
+/* ============================================================
+   出口铁门（细节绘制）
+============================================================ */
+function drawExitDoor(g, ex, ey) {
+  const dx = ex + 7, dy = ey + 5, dw = CELL - 14, dh = CELL - 10;
+
+  // 门洞深色
+  g.fillStyle = '#050508';
+  g.fillRect(dx - 2, dy - 2, dw + 4, dh + 4);
+
+  // 外门框
+  g.fillStyle = '#4e4e58';
+  g.fillRect(dx - 2, dy - 2, dw + 4, 3);
+  g.fillRect(dx - 2, dy + dh - 1, dw + 4, 3);
+  g.fillRect(dx - 2, dy - 2, 3, dh + 4);
+  g.fillRect(dx + dw - 1, dy - 2, 3, dh + 4);
+  g.fillStyle = 'rgba(168,168,182,.42)';
+  g.fillRect(dx - 2, dy - 2, dw + 4, 1);
+  g.fillStyle = 'rgba(0,0,0,.55)';
+  g.fillRect(dx - 2, dy + dh + 1, dw + 4, 1);
+
+  const px = dx + 3, py = dy + 3, pw = dw - 6, ph = dh - 6;
+
+  // 门板本体：竖向拉丝金属
+  const grad = g.createLinearGradient(px, py, px + pw, py);
+  grad.addColorStop(0, '#303038');
+  grad.addColorStop(0.28, '#22222a');
+  grad.addColorStop(0.52, '#191920');
+  grad.addColorStop(0.78, '#23232b');
+  grad.addColorStop(1, '#16161c');
+  g.fillStyle = grad;
+  g.fillRect(px, py, pw, ph);
+
+  // 拉丝纹理
+  for (let i = 0; i < 24; i++) {
+    const yy = py + Math.random() * ph;
+    g.fillStyle = 'rgba(' + (72 + (Math.random() * 48 | 0)) + ',' + (72 + (Math.random() * 48 | 0)) + ',' + (82 + (Math.random() * 48 | 0)) + ',' + (0.05 + Math.random() * 0.09) + ')';
+    g.fillRect(px, yy, pw, 1);
+  }
+
+  // 锈斑
+  for (let i = 0; i < 16; i++) {
+    const rx = px + Math.random() * pw, ry = py + Math.random() * ph;
+    g.fillStyle = 'rgba(' + (92 + (Math.random() * 34 | 0)) + ',' + (58 + (Math.random() * 22 | 0)) + ',' + (38 + (Math.random() * 16 | 0)) + ',' + (0.04 + Math.random() * 0.1) + ')';
+    g.beginPath(); g.arc(rx, ry, 1.2 + Math.random() * 3.4, 0, TAU); g.fill();
+  }
+
+  // 双开门中缝
+  g.fillStyle = 'rgba(0,0,0,.86)';
+  g.fillRect(px + pw / 2 - 1, py, 2, ph);
+  g.fillStyle = 'rgba(150,150,164,.13)';
+  g.fillRect(px + pw / 2 + 1, py, 1, ph);
+
+  // 上下横档
+  g.fillStyle = 'rgba(88,88,100,.55)';
+  g.fillRect(px, py + ph * 0.17, pw, 2);
+  g.fillRect(px, py + ph * 0.80, pw, 2);
+
+  // 四角铆钉
+  const rivets = [];
+  for (let i = 0; i < 4; i++) rivets.push([px + 4, py + 4 + i * (ph - 8) / 3]);
+  for (let i = 0; i < 4; i++) rivets.push([px + pw - 4, py + 4 + i * (ph - 8) / 3]);
+  rivets.forEach(function (r) {
+    g.fillStyle = '#5c5c68';
+    g.beginPath(); g.arc(r[0], r[1], 1.6, 0, TAU); g.fill();
+    g.fillStyle = 'rgba(178,178,192,.5)';
+    g.beginPath(); g.arc(r[0] - 0.5, r[1] - 0.6, 0.8, 0, TAU); g.fill();
+  });
+
+  // 轮盘把手
+  const hx = px + pw * 0.64, hy = py + ph * 0.5;
+  g.strokeStyle = 'rgba(126,126,140,.55)';
+  g.lineWidth = 1.4;
+  g.beginPath(); g.arc(hx, hy, 5.6, 0, TAU); g.stroke();
+  g.beginPath(); g.arc(hx, hy, 2.2, 0, TAU); g.stroke();
+  g.fillStyle = 'rgba(88,88,100,.9)';
+  g.beginPath(); g.arc(hx, hy, 1.6, 0, TAU); g.fill();
+
+  // 底部警示斜条
+  const bandY = py + ph - 6;
+  for (let i = -2; i < pw / 4 + 2; i++) {
+    g.fillStyle = (i % 2 === 0) ? 'rgba(152,52,40,.42)' : 'rgba(22,22,26,.55)';
+    g.beginPath();
+    g.moveTo(px + i * 4, bandY);
+    g.lineTo(px + i * 4 + 4, bandY);
+    g.lineTo(px + i * 4 + 1, bandY + 5);
+    g.lineTo(px + i * 4 - 3, bandY + 5);
+    g.closePath(); g.fill();
+  }
+
+  // 门缝渗出来的暖光
+  const lg2 = g.createLinearGradient(0, py + ph - 2, 0, py + ph + 4);
+  lg2.addColorStop(0, 'rgba(236,144,90,0)');
+  lg2.addColorStop(0.5, 'rgba(236,144,90,.3)');
+  lg2.addColorStop(1, 'rgba(236,144,90,0)');
+  g.fillStyle = lg2;
+  g.fillRect(px, py + ph - 2, pw, 6);
+}
+
+/* ============================================================
+   突脸素材：程序化画一张高对比度的脸（不依赖图片）
+============================================================ */
+function makeScareFace(size) {
+  const c = document.createElement('canvas');
+  c.width = size; c.height = size;
+  const g = c.getContext('2d');
+  g.fillStyle = '#070607';
+  g.fillRect(0, 0, size, size);
+
+  const cx = size / 2, cy = size * 0.5;
+
+  // 脸
+  const faceGrad = g.createRadialGradient(cx, cy - size * 0.09, size * 0.03, cx, cy, size * 0.46);
+  faceGrad.addColorStop(0, 'rgba(216,208,194,.96)');
+  faceGrad.addColorStop(0.42, 'rgba(170,162,150,.86)');
+  faceGrad.addColorStop(0.76, 'rgba(96,90,82,.5)');
+  faceGrad.addColorStop(1, 'rgba(10,9,9,0)');
+  g.fillStyle = faceGrad;
+  g.beginPath();
+  g.ellipse(cx, cy, size * 0.255, size * 0.36, 0, 0, TAU);
+  g.fill();
+
+  // 眼窝（深黑）
+  const ey = cy - size * 0.055;
+  const eo = size * 0.098;
+  g.fillStyle = 'rgba(8,7,7,.94)';
+  g.beginPath(); g.ellipse(cx - eo, ey, size * 0.062, size * 0.075, -0.22, 0, TAU); g.fill();
+  g.beginPath(); g.ellipse(cx + eo, ey, size * 0.062, size * 0.075, 0.22, 0, TAU); g.fill();
+  // 眼窝里的一点反光
+  g.fillStyle = 'rgba(190,186,178,.32)';
+  g.beginPath(); g.arc(cx - eo + size * 0.014, ey - size * 0.012, size * 0.006, 0, TAU); g.fill();
+  g.fillStyle = 'rgba(190,186,178,.22)';
+  g.beginPath(); g.arc(cx + eo - size * 0.014, ey + size * 0.010, size * 0.005, 0, TAU); g.fill();
+
+  // 鼻腔的凹洞
+  g.fillStyle = 'rgba(18,16,15,.72)';
+  g.beginPath(); g.ellipse(cx, cy + size * 0.028, size * 0.016, size * 0.03, 0, 0, TAU); g.fill();
+  g.beginPath(); g.ellipse(cx - size * 0.016, cy + size * 0.052, size * 0.008, size * 0.012, 0, 0, TAU); g.fill();
+  g.beginPath(); g.ellipse(cx + size * 0.016, cy + size * 0.052, size * 0.008, size * 0.012, 0, 0, TAU); g.fill();
+
+  // 张开的嘴
+  const mw = size * 0.13, mh = size * 0.19;
+  g.fillStyle = 'rgba(6,5,5,.95)';
+  g.beginPath();
+  g.ellipse(cx, cy + size * 0.165, mw, mh, 0, 0, TAU);
+  g.fill();
+
+  // 牙
+  g.fillStyle = 'rgba(202,196,182,.72)';
+  for (let i = -3; i <= 3; i++) {
+    const tx = cx + i * (mw / 3.6);
+    const th = size * (0.016 + Math.random() * 0.018);
+    g.fillRect(tx - size * 0.006, cy + size * 0.165 - mh + 2, size * 0.012, th);
+    g.fillRect(tx - size * 0.006, cy + size * 0.165 + mh - 2 - th, size * 0.012, th);
+  }
+
+  // 头发：从额头垂下的乱线
+  g.strokeStyle = 'rgba(14,13,12,.85)';
+  g.lineWidth = size * 0.006;
+  for (let i = 0; i < 26; i++) {
+    const bx = cx + (Math.random() - 0.5) * size * 0.46;
+    const by = cy - size * 0.3 + Math.random() * size * 0.1;
+    g.beginPath();
+    g.moveTo(bx, by);
+    g.bezierCurveTo(
+      bx + (Math.random() - 0.5) * size * 0.1, by + size * 0.08,
+      bx + (Math.random() - 0.5) * size * 0.14, by + size * 0.16,
+      bx + (Math.random() - 0.5) * size * 0.18, by + size * (0.16 + Math.random() * 0.14)
+    );
+    g.stroke();
+  }
+
+  // 颗粒噪点
+  for (let i = 0; i < size * 12; i++) {
+    const nx = Math.random() * size, ny = Math.random() * size;
+    const v = Math.random() < 0.5 ? 0 : 255;
+    g.fillStyle = 'rgba(' + v + ',' + v + ',' + v + ',' + (0.02 + Math.random() * 0.06) + ')';
+    g.fillRect(nx, ny, 1, 1);
+  }
+
+  // 红色边缘渗出
+  const redGrad = g.createRadialGradient(cx, cy, size * 0.3, cx, cy, size * 0.66);
+  redGrad.addColorStop(0, 'rgba(150,22,16,0)');
+  redGrad.addColorStop(0.7, 'rgba(150,22,16,.11)');
+  redGrad.addColorStop(1, 'rgba(90,8,6,.34)');
+  g.fillStyle = redGrad;
+  g.fillRect(0, 0, size, size);
+
+  // 四周压黑
+  const vig = g.createRadialGradient(cx, cy, size * 0.36, cx, cy, size * 0.74);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(0,0,0,.92)');
+  g.fillStyle = vig;
+  g.fillRect(0, 0, size, size);
+
+  return c;
+}
 
 /* ============================================================
    地图静态层（只画一次）
@@ -523,25 +1023,7 @@ function buildMapLayer(level) {
   }
 
   // 出口：一扇嵌在墙里的铁门
-  const ex = level.exit.cx * CELL, ey = level.exit.cy * CELL;
-  g.fillStyle = '#0c0c10';
-  g.fillRect(ex + 8, ey + 6, CELL - 16, CELL - 12);
-
-  g.strokeStyle = 'rgba(146,136,120,.8)';
-  g.lineWidth = 3;
-  g.strokeRect(ex + 8, ey + 6, CELL - 16, CELL - 12);
-
-  g.strokeStyle = 'rgba(62,58,52,.95)';
-  g.lineWidth = 1;
-  g.beginPath();
-  g.moveTo(ex + CELL / 2, ey + 9);
-  g.lineTo(ex + CELL / 2, ey + CELL - 9);
-  g.stroke();
-
-  // 门缝里的红灯
-  g.fillStyle = 'rgba(206,68,52,.62)';
-  g.fillRect(ex + 12, ey + 14, 2, 10);
-  g.fillRect(ex + CELL - 14, ey + 14, 2, 10);
+  drawExitDoor(g, level.exit.cx * CELL, level.exit.cy * CELL);
 
   return c;
 }
@@ -695,6 +1177,13 @@ function movePlayer(dt) {
     P.angle += diff * (1 - Math.exp(-dt * 7));
   }
   P.bob += dt * sp * 0.02;
+
+  // 脚步：按走过的距离触发，避免原地站着也响
+  S.stepAcc = (S.stepAcc || 0) + sp * dt;
+  if (S.stepAcc > 36) {
+    S.stepAcc = 0;
+    Sound.step(0.55 + Math.min(0.45, sp / SPEED));
+  }
 }
 
 /* ============================================================
@@ -705,12 +1194,8 @@ function updateCamera(dt) {
   C.x = lerp(C.x, P.x, k);
   C.y = lerp(C.y, P.y, k);
 
-  const halfW = D.w / (2 * D.scale);
-  const halfH = D.h / (2 * D.scale);
-  const mapW = MAP_W * CELL;
-  const mapH = MAP_H * CELL;
-  C.x = (halfW * 2 >= mapW) ? mapW / 2 : clamp(C.x, halfW, mapW - halfW);
-  C.y = (halfH * 2 >= mapH) ? mapH / 2 : clamp(C.y, halfH, mapH - halfH);
+  // 不再把镜头卡在地图边缘：地图外本来就是黑的，
+  // 让主角始终居中，光圈才不会跑到屏幕角落被暗角吃掉。
 }
 
 function updateShake(dt) {
@@ -767,7 +1252,238 @@ function beamScaleAt(t) {
     const near = clamp(1 - d / (LIGHT_R * 1.35), 0, 1);
     f -= 0.10 * near;
   }
-  return clamp(f, 0.72, 1.03);
+  let out = clamp(f, 0.72, 1.03);
+  if (S) {
+    // 电量越低，光圈越缩、越不稳
+    const b = clamp(S.battery, 0, 1);
+    out *= 0.70 + 0.30 * b;
+    if (b < 0.22) {
+      const jitter = Math.sin(S.t * 43 + 1.7) + Math.sin(S.t * 67.3);
+      if (jitter < -0.4) out *= 0.55;
+    }
+  }
+  if (S && S.flickT > 0) {
+    const fl = (Math.sin(S.t * 31) > -0.1 ? 1 : 0.16) * (Math.sin(S.t * 17.3 + 2) > 0.55 ? 0.5 : 1);
+    out *= fl;
+  }
+  return out;
+}
+
+/* ============================================================
+   指引线 / 突脸 / 频闪 / 环境事件
+============================================================ */
+function playerCell() {
+  return { cx: Math.floor(P.x / CELL), cy: Math.floor(P.y / CELL) };
+}
+
+function buildPath(from, to) {
+  const W = MAP_W, H = MAP_H, grid = S.level.grid;
+  const total = W * H;
+  const prev = new Int32Array(total);
+  prev.fill(-2);
+  const startIdx = from.cx + from.cy * W;
+  const goalIdx = to.cx + to.cy * W;
+  prev[startIdx] = -1;
+  const queue = [startIdx];
+  let head = 0;
+
+  while (head < queue.length) {
+    const cur = queue[head++];
+    if (cur === goalIdx) break;
+    const x = cur % W, y = (cur - x) / W;
+    const nb = [cur + 1, cur - 1, cur + W, cur - W];
+    for (let i = 0; i < 4; i++) {
+      const ni = nb[i];
+      if (ni < 0 || ni >= total) continue;
+      const nx = ni % W, ny = (ni - nx) / W;
+      if (Math.abs(nx - x) + Math.abs(ny - y) !== 1) continue;
+      if (grid[ny][nx] !== 0 || prev[ni] !== -2) continue;
+      prev[ni] = cur;
+      queue.push(ni);
+    }
+  }
+
+  const cells = [];
+  let cur = goalIdx, guard = 0;
+  while (cur !== -1 && cur !== -2 && guard++ < total) {
+    const x = cur % W;
+    cells.push({ cx: x, cy: (cur - x) / W });
+    cur = prev[cur];
+  }
+  cells.reverse();
+  const pts = cells.map(cellCenter);
+  pts.unshift({ x: P.x, y: P.y });
+  return pts;
+}
+
+function strokePath(pts) {
+  if (!pts || pts.length < 2) return;
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.stroke();
+}
+
+function updateGuideTip() {
+  if (!S || !S.guide) { guideTipEl.classList.remove('on'); return; }
+  const left = S.guide.until - S.t;
+  if (left <= 0) { guideTipEl.classList.remove('on'); return; }
+  guideTipEl.textContent = '指引剩余 ' + Math.ceil(left) + 's · 之后自己走';
+  guideTipEl.classList.add('on');
+}
+
+function drawGuide() {
+  if (!S || !S.guide) return;
+  const age = S.t - S.guide.start;
+  if (age > 10 || S.t >= S.guide.until) {
+    S.guide = null;
+    guideTipEl.classList.remove('on');
+    return;
+  }
+  updateGuideTip();
+
+  const fade = age < 7 ? 1 : clamp(1 - (age - 7) / 3, 0, 1);
+  const pts = S.guide.pts;
+  pts[0] = { x: P.x, y: P.y };
+  const pulse = 0.62 + 0.38 * Math.sin(S.t * 7.2);
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  ctx.strokeStyle = 'rgba(176,28,24,' + (0.13 * fade).toFixed(3) + ')';
+  ctx.lineWidth = 14;
+  strokePath(pts);
+
+  ctx.strokeStyle = 'rgba(236,54,44,' + (0.52 * fade * pulse).toFixed(3) + ')';
+  ctx.lineWidth = 3;
+  strokePath(pts);
+
+  ctx.setLineDash([7, 13]);
+  ctx.lineDashOffset = -(S.t * 52) % 20;
+  ctx.strokeStyle = 'rgba(255,128,100,' + (0.55 * fade).toFixed(3) + ')';
+  ctx.lineWidth = 1.5;
+  strokePath(pts);
+  ctx.setLineDash([]);
+
+  // 沿线移动的亮点
+  const seg = clamp((S.t * 0.55) % 1, 0, 1) * (pts.length - 1);
+  const i0 = Math.floor(seg), i1 = Math.min(pts.length - 1, i0 + 1);
+  const k = seg - i0;
+  const hx = lerp(pts[i0].x, pts[i1].x, k);
+  const hy = lerp(pts[i0].y, pts[i1].y, k);
+  const hg = ctx.createRadialGradient(hx, hy, 0, hx, hy, 16);
+  hg.addColorStop(0, 'rgba(255,196,170,' + (0.75 * fade).toFixed(3) + ')');
+  hg.addColorStop(1, 'rgba(230,60,44,0)');
+  ctx.fillStyle = hg;
+  ctx.beginPath(); ctx.arc(hx, hy, 16, 0, TAU); ctx.fill();
+
+  ctx.restore();
+}
+
+function triggerScare() {
+  if (!S || S.phase !== 'play') return;
+  S.scareT = 0.0001;
+  S.scareJitterA = rand(0, TAU);
+  C.amp = Math.max(C.amp, 12);
+  Sound.screech();
+}
+
+function drawScare() {
+  if (!S || !S.scareT) return;
+  const k = S.scareT;
+  if (k > 0.66) { S.scareT = 0; return; }
+
+  let a = 1;
+  if (k < 0.34) a = (Math.floor(k * 42) % 2 === 0) ? 1 : 0.1;
+  else a = clamp(1 - (k - 0.34) / 0.28, 0, 1);
+
+  if (!drawScare.face) drawScare.face = makeScareFace(900);
+  const w = D.w, h = D.h;
+  const cover = Math.max(w / 900, h / 900) * (1.06 + k * 0.12);
+
+  ctx.save();
+  ctx.globalAlpha = a;
+  const jx = (Math.random() * 2 - 1) * (k < 0.3 ? 14 : 4);
+  const jy = (Math.random() * 2 - 1) * (k < 0.3 ? 14 : 4);
+  ctx.drawImage(drawScare.face, w / 2 - 450 * cover + jx, h / 2 - 450 * cover + jy, 900 * cover, 900 * cover);
+  ctx.fillStyle = 'rgba(120,10,6,' + (0.14 * a).toFixed(3) + ')';
+  ctx.fillRect(0, 0, w, h);
+  ctx.restore();
+}
+
+/* 环境音/事件：敲门、频闪、突脸、心跳、门轴声 */
+function updateAmbient(dt) {
+  if (!S || S.phase !== 'play') return;
+
+  if (S.t >= S.nextKnock) {
+    S.nextKnock = S.t + rand(24, 46);
+    Sound.knock();
+  }
+
+  if (S.t >= S.nextFlicker) {
+    S.nextFlicker = S.t + rand(20, 44);
+    S.flickT = rand(0.45, 0.85);
+    Sound.flick();
+  }
+  if (S.flickT > 0) S.flickT -= dt;
+
+  if (S.t >= S.nextScare) {
+    S.nextScare = S.t + rand(42, 78);
+    triggerScare();
+  }
+  if (S.scareT) S.scareT += dt;
+
+  // 心跳
+  if (E.active && E.mode === 'hunt') {
+    const dx = E.x - P.x, dy = E.y - P.y;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    const near = clamp(1 - d / (LIGHT_R * 2.4), 0, 1);
+    if (near > 0.18) {
+      S.heartT -= dt;
+      if (S.heartT <= 0) {
+        Sound.heart(near);
+        S.heartT = lerp(0.95, 0.44, near);
+      }
+    }
+  } else {
+    S.heartT = 0;
+  }
+
+  // 滴水声：远处管道
+  if (S.t >= S.nextDrip) {
+    S.nextDrip = S.t + rand(9, 26);
+    Sound.drip();
+  }
+
+  // 追猎时若有若无的呼吸声
+  if (E.active && E.mode === 'hunt') {
+    const bx = E.x - P.x, by = E.y - P.y;
+    const bd = Math.sqrt(bx * bx + by * by);
+    if (bd < LIGHT_R * 3.2) {
+      S.breathT -= dt;
+      if (S.breathT <= 0) {
+        Sound.breath();
+        S.breathT = rand(3.2, 5.4);
+      }
+    }
+  } else {
+    S.breathT = 0;
+  }
+
+  if (S.eyes) {
+    S.eyes.t -= dt;
+    if (S.eyes.t <= 0) S.eyes = null;
+  }
+
+  // 靠近出口时门轴吱呀
+  const ddx = S.exit.x - P.x, ddy = S.exit.y - P.y;
+  const de = Math.sqrt(ddx * ddx + ddy * ddy);
+  if (de < 250 && S.t >= S.creakAt) {
+    S.creakAt = S.t + rand(6, 9);
+    Sound.creak();
+  }
 }
 
 /* ============================================================
@@ -799,6 +1515,10 @@ function spawnPass() {
   E.opacity = 1;
   E.trail.length = 0;
   E.fade = 1;
+  E.sounded = false;
+
+  // 黑暗里先亮起一双眼睛，再动起来
+  S.eyes = { x: cx, y: cy, t: 1.5 };
 
   C.amp = Math.max(C.amp, 1.6);
 }
@@ -818,8 +1538,10 @@ function spawnHunt() {
   E.opacity = 1;
   E.trail.length = 0;
   E.fade = 1;
+  E.sounded = false;
 
   C.amp = Math.max(C.amp, 5);
+  Sound.heart(1);
   showNotice('它在靠近');
 }
 
@@ -837,6 +1559,8 @@ function finishEntity() {
   if (S.events >= 7) {
     S.nextHunt = Math.min(S.nextHunt, S.t + rand(40, 64));
   }
+  // 它擦过去之后，偶尔回头给你看一眼
+  if (S.events >= 2 && Math.random() < 0.26) triggerScare();
 }
 
 function updateEntity(dt) {
@@ -852,6 +1576,10 @@ function updateEntity(dt) {
 
     const ddx = E.x - P.x, ddy = E.y - P.y;
     const d = Math.sqrt(ddx * ddx + ddy * ddy);
+    if (d < LIGHT_R * 1.22 && !E.sounded) {
+      E.sounded = true;
+      Sound.whoosh();
+    }
     if (d < LIGHT_R * 1.25) {
       const near = 1 - d / (LIGHT_R * 1.25);
       C.amp = Math.max(C.amp, near * 3.4);
@@ -905,6 +1633,7 @@ function caught() {
   S.phase = 'dying';
   S.dieT = 0;
   C.amp = 16;
+  Sound.death();
   E.x = P.x + Math.cos(P.angle) * 6;
   E.y = P.y + Math.sin(P.angle) * 6;
   E.angle = P.angle + Math.PI;
@@ -917,6 +1646,7 @@ function win() {
   if (S.phase !== 'play') return;
   S.phase = 'winning';
   S.winT = 0;
+  Sound.win();
   stick.active = false;
   stickEl.classList.remove('on');
   keys.clear();
@@ -947,6 +1677,26 @@ function writeBest(sec) {
   try { window.localStorage.setItem('circleOfLight.best', String(sec)); } catch (err) { /* ignore */ }
 }
 
+/* 电池：散落在离出生点和出口都不近的走道上 */
+function placeBatteries(level) {
+  const list = [];
+  const start = cellCenter(level.start);
+  const exit = cellCenter(level.exit);
+  let guard = 0;
+  while (list.length < 2 && guard++ < 500) {
+    const cx = 1 + Math.floor(Math.random() * (MAP_W - 2));
+    const cy = 1 + Math.floor(Math.random() * (MAP_H - 2));
+    if (level.grid[cy][cx] !== 0) continue;
+    const px = cx * CELL + CELL / 2;
+    const py = cy * CELL + CELL / 2;
+    if (Math.hypot(px - start.x, py - start.y) < 240) continue;
+    if (Math.hypot(px - exit.x, py - exit.y) < 200) continue;
+    if (list.some(b => Math.hypot(b.x - px, b.y - py) < 380)) continue;
+    list.push({ x: px, y: py, taken: false, phase: Math.random() * Math.PI * 2 });
+  }
+  return list;
+}
+
 function newGame(phase) {
   const level = generateLevel();
   const startPos = cellCenter(level.start);
@@ -975,7 +1725,25 @@ function newGame(phase) {
     beamScale: 1,
     motes: [],
     dieT: 0,
-    winT: 0
+    winT: 0,
+    // 恐怖事件调度
+    nextScare: rand(32, 52),
+    scareT: 0,
+    nextFlicker: rand(16, 32),
+    flickT: 0,
+    nextKnock: rand(12, 24),
+    creakAt: 8,
+    guide: null,
+    stepAcc: 0,
+    heartT: 0,
+    // 手电电量
+    battery: 1,
+    batteries: placeBatteries(level),
+    lowWarned: false,
+    hudBattery: -1,
+    nextDrip: rand(10, 22),
+    breathT: 0,
+    eyes: null
   };
   S.motes = initMotes();
 }
@@ -989,6 +1757,21 @@ function beginPlay() {
   S.t = 0;
   S.nextPass = 14;
   S.nextHunt = Infinity;
+  S.nextScare = rand(32, 52);
+  S.scareT = 0;
+  S.nextFlicker = rand(16, 32);
+  S.flickT = 0;
+  S.nextKnock = rand(12, 24);
+  S.creakAt = 8;
+  S.guide = null;
+  S.stepAcc = 0;
+  S.heartT = 0;
+  guideTipEl.classList.remove('on');
+
+  // 首次点击是解锁 AudioContext 的唯一合法时机
+  Sound.init();
+  Sound.ambience(true);
+
   hintEl.classList.add('on');
   setTimeout(() => hintEl.classList.remove('on'), 8200);
   startLoop();
@@ -1017,6 +1800,8 @@ function showEnd(isWin) {
   raf = 0;
   hudEl.hidden = true;
   noticeEl.classList.remove('on');
+  guideTipEl.classList.remove('on');
+  Sound.ambience(false);
 
   const sec = S.t;
   endEyebrow.textContent = isWin ? 'ESCAPED' : 'CAUGHT';
@@ -1040,6 +1825,33 @@ function showEnd(isWin) {
 /* ============================================================
    更新
 ============================================================ */
+function updateBattery(dt) {
+  S.battery = Math.max(0, S.battery - dt * 0.0042);
+
+  for (const b of S.batteries) {
+    if (b.taken) continue;
+    if (Math.hypot(b.x - P.x, b.y - P.y) < 26) {
+      b.taken = true;
+      S.battery = Math.min(1, S.battery + 0.42);
+      Sound.pickup();
+      showNotice('手电电量 +42%');
+    }
+  }
+
+  if (!S.lowWarned && S.battery < 0.28) {
+    S.lowWarned = true;
+    Sound.zap();
+    showNotice('手电快没电了 · 地上有备用电池');
+  }
+
+  const pct = Math.round(S.battery * 100);
+  if (pct !== S.hudBattery) {
+    S.hudBattery = pct;
+    batteryFill.style.width = pct + '%';
+    batteryWrap.classList.toggle('low', S.battery < 0.3);
+  }
+}
+
 function update(dt, t) {
   if (!S) return;
 
@@ -1056,6 +1868,8 @@ function update(dt, t) {
     S.t += dt;
     movePlayer(dt);
     updateCamera(dt);
+    updateAmbient(dt);
+    updateBattery(dt);
     S.beamScale = beamScaleAt(S.t);
     updateEntity(dt);
     updateDirector(S.t);
@@ -1160,8 +1974,8 @@ function drawWarmPool(t) {
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   const g = ctx.createRadialGradient(P.x, P.y, 0, P.x, P.y, LIGHT_R * 0.8);
-  g.addColorStop(0, 'rgba(206,180,132,0.09)');
-  g.addColorStop(0.45, 'rgba(196,172,128,0.045)');
+  g.addColorStop(0, 'rgba(206,180,132,0.13)');
+  g.addColorStop(0.45, 'rgba(196,172,128,0.06)');
   g.addColorStop(1, 'rgba(186,164,124,0)');
   ctx.fillStyle = g;
   ctx.beginPath();
@@ -1289,6 +2103,38 @@ function drawEntityBody() {
   ctx.restore();
 }
 
+/* 门的动态细节：壁灯闪烁、门底渗光、门缝滑影 */
+function drawDoorFx(t) {
+  const ex = S.exit.x, ey = S.exit.y;
+  const dx = ex - P.x, dy = ey - P.y;
+  const d = Math.sqrt(dx * dx + dy * dy);
+  const near = clamp(1 - d / 300, 0, 1);
+
+  const g0 = ctx.createLinearGradient(0, ey + 24, 0, ey + 54);
+  const a0 = 0.05 + 0.055 * near;
+  g0.addColorStop(0, 'rgba(238,150,92,' + (a0 * 1.7).toFixed(3) + ')');
+  g0.addColorStop(1, 'rgba(238,150,92,0)');
+  ctx.fillStyle = g0;
+  ctx.fillRect(ex - 19, ey + 24, 38, 30);
+
+  const blink = (Math.sin(t * 3.1) > -0.86 ? 1 : 0.12) * (Math.sin(t * 11.7) > 0.9 ? 0.4 : 1);
+  [-18, 18].forEach(function (off) {
+    const a = 0.13 * blink * (0.42 + 0.58 * near);
+    const lg = ctx.createRadialGradient(ex + off, ey - 19, 0, ex + off, ey - 19, 25);
+    lg.addColorStop(0, 'rgba(238,124,86,' + a.toFixed(3) + ')');
+    lg.addColorStop(1, 'rgba(238,124,86,0)');
+    ctx.fillStyle = lg;
+    ctx.beginPath(); ctx.arc(ex + off, ey - 19, 25, 0, TAU); ctx.fill();
+    ctx.fillStyle = 'rgba(244,158,116,' + (0.22 + 0.5 * a).toFixed(3) + ')';
+    ctx.beginPath(); ctx.arc(ex + off, ey - 19, 1.7, 0, TAU); ctx.fill();
+  });
+
+  // 门缝里滑过去的一条影
+  const slide = ((t * 0.34) % 2) - 1;
+  ctx.fillStyle = 'rgba(4,3,3,.55)';
+  ctx.fillRect(ex - 20 + slide * 11, ey + 21, 9, 2.4);
+}
+
 /* 该点接收到的手电光强，用来给暗处轮廓勾一条反光 */
 function beamIntensityAt(x, y) {
   const dx = x - P.x, dy = y - P.y;
@@ -1329,6 +2175,59 @@ function drawEntityGlint() {
   ctx.restore();
 }
 
+function drawBatteries(t) {
+  if (!S || !S.batteries) return;
+  for (const b of S.batteries) {
+    if (b.taken) continue;
+    const d = Math.hypot(b.x - P.x, b.y - P.y);
+    if (d > 820) continue;
+    const pulse = 0.5 + 0.5 * Math.sin(t * 2.1 + b.phase);
+    const fade = clamp(1 - (d - 160) / 660, 0, 1);
+    const a = (0.10 + 0.16 * pulse) * fade;
+
+    ctx.save();
+    ctx.translate(b.x, b.y);
+    const g = ctx.createRadialGradient(0, 0, 2, 0, 0, 46);
+    g.addColorStop(0, 'rgba(226,196,120,' + (a * 1.5).toFixed(3) + ')');
+    g.addColorStop(1, 'rgba(226,196,120,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(0, 0, 46, 0, TAU);
+    ctx.fill();
+
+    ctx.globalAlpha = 0.45 + 0.4 * pulse;
+    ctx.strokeStyle = 'rgba(236,214,158,0.9)';
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.rect(-4.6, -6.6, 9.2, 13.2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-2.2, -6.6); ctx.lineTo(-2.2, -8.4);
+    ctx.lineTo(2.2, -8.4); ctx.lineTo(2.2, -6.6);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(236,214,158,0.55)';
+    ctx.fillRect(-4.6, -1.2, 9.2, 2.2);
+    ctx.restore();
+  }
+}
+
+function drawEyes() {
+  if (!S || !S.eyes) return;
+  const e = S.eyes;
+  const a = clamp(e.t / 0.55, 0, 1) * 0.42;
+  const jx = Math.sin(e.t * 21) * 0.7;
+  ctx.save();
+  ctx.globalAlpha = a;
+  ctx.fillStyle = 'rgba(214,222,226,0.95)';
+  ctx.shadowColor = 'rgba(190,206,214,0.8)';
+  ctx.shadowBlur = 7;
+  ctx.beginPath();
+  ctx.arc(e.x - 7 + jx, e.y, 2.1, 0, TAU);
+  ctx.arc(e.x + 7 + jx, e.y, 2.1, 0, TAU);
+  ctx.fill();
+  ctx.restore();
+}
+
 function draw(t) {
   if (!S) return;
 
@@ -1361,11 +2260,17 @@ function draw(t) {
   ctx.translate(w / 2, h / 2);
   ctx.scale(D.scale, D.scale);
   ctx.translate(-camX, -camY);
+  drawDoorFx(t);
   drawExitGlow(t);
+  drawBatteries(t);
+  drawEyes();
+  drawGuide();
   if (S.phase === 'dying') drawEntityBody();
   drawEntityGlint();
   drawPlayerRim();
   ctx.restore();
+
+  drawScare();
 
   if (S.phase === 'dying') {
     const f = Math.max(0, 1 - S.dieT * 2.6) * 0.34;
@@ -1436,13 +2341,364 @@ function resize() {
 
   const minD = Math.min(w, h);
   D.scale = clamp(minD / 900, 0.72, 1.35);
-  LIGHT_R = (minD * 0.62) / (2 * D.scale);
+  // 手机竖屏时 minD 很小，光圈会小到看不清路；给一个下限，保证“一小圈”仍然够用
+  const baseR = Math.max(minD * 0.62, 440);
+  LIGHT_R = baseR / (2 * D.scale);
   AMBIENT_R = LIGHT_R * 0.32;
 
   if (S) {
     updateCamera(0.0001);
     if (S.phase === 'paused' || S.phase === 'end' || S.phase === 'title') draw(performance.now() / 1000);
   }
+  if (HINT.active) sizePoopCanvas();
+}
+
+/* ============================================================
+   提示视频：大便超人（程序化 20 秒动画）
+============================================================ */
+const poopCtx = poopCanvasEl.getContext('2d');
+const HINT = { active: false, start: 0, raf: 0, w: 0, h: 0, done: false, limit: 20 };
+const POOP_CAPTIONS = [
+  '世界需要我！',
+  '冲啊——！！',
+  '臭气弹，发射！',
+  '正义的味道，有点冲',
+  '别怕，我来了！'
+];
+
+function sizePoopCanvas() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  poopCanvasEl.style.width = '100%';
+  poopCanvasEl.style.height = '100%';
+  const w = poopCanvasEl.clientWidth || window.innerWidth;
+  const h = poopCanvasEl.clientHeight || window.innerHeight;
+  HINT.w = w; HINT.h = h;
+  poopCanvasEl.width = Math.round(w * dpr);
+  poopCanvasEl.height = Math.round(h * dpr);
+  poopCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function drawCloud(g, x, y, r, color) {
+  g.fillStyle = color;
+  g.beginPath();
+  g.arc(x - r * 0.55, y, r * 0.62, 0, TAU);
+  g.arc(x, y - r * 0.28, r * 0.82, 0, TAU);
+  g.arc(x + r * 0.6, y + r * 0.02, r * 0.58, 0, TAU);
+  g.arc(x + r * 0.1, y + r * 0.42, r * 0.7, 0, TAU);
+  g.fill();
+}
+
+function drawPoopHero(g, x, y, s, t, dir) {
+  g.save();
+  g.translate(x, y);
+  g.scale(dir, 1);
+  g.rotate(Math.sin(t * 3.2) * 0.06);
+
+  // 披风
+  g.fillStyle = '#e0362b';
+  g.beginPath();
+  g.moveTo(-s * 0.48, -s * 0.22);
+  g.quadraticCurveTo(-s * 1.45, -s * 0.18 + Math.sin(t * 9) * s * 0.26, -s * 1.75, s * 0.5 + Math.sin(t * 7) * s * 0.24);
+  g.lineTo(-s * 0.5, s * 0.42);
+  g.closePath();
+  g.fill();
+  g.fillStyle = '#b0241c';
+  g.fillRect(-s * 0.56, -s * 0.26, s * 0.2, s * 0.14);
+
+  // 身体：三层便便
+  const brown = g.createLinearGradient(-s, -s * 0.6, s, s * 0.6);
+  brown.addColorStop(0, '#8b5528');
+  brown.addColorStop(0.5, '#6f4020');
+  brown.addColorStop(1, '#4d2c14');
+  g.fillStyle = brown;
+  g.beginPath();
+  g.ellipse(0, s * 0.34, s * 0.95, s * 0.34, 0, 0, TAU);
+  g.fill();
+  g.beginPath();
+  g.ellipse(0, s * 0.02, s * 0.78, s * 0.3, 0, 0, TAU);
+  g.fill();
+  g.beginPath();
+  g.ellipse(0, s * -0.26, s * 0.58, s * 0.27, 0, 0, TAU);
+  g.fill();
+  // 顶上的小卷
+  g.beginPath();
+  g.ellipse(s * 0.06, s * -0.46, s * 0.22, s * 0.17, 0.5, 0, TAU);
+  g.fill();
+
+  // 高光
+  g.fillStyle = 'rgba(255,226,170,.22)';
+  g.beginPath();
+  g.ellipse(-s * 0.26, s * 0.3, s * 0.22, s * 0.1, -0.4, 0, TAU);
+  g.fill();
+  g.beginPath();
+  g.ellipse(-s * 0.16, s * -0.02, s * 0.15, s * 0.07, -0.4, 0, TAU);
+  g.fill();
+
+  // 头带
+  g.fillStyle = '#d8322a';
+  g.beginPath();
+  g.ellipse(0, s * -0.36, s * 0.52, s * 0.1, -0.05, 0, TAU);
+  g.fill();
+  g.beginPath();
+  g.moveTo(-s * 0.5, s * -0.36);
+  g.quadraticCurveTo(-s * 1.0, s * -0.5 + Math.sin(t * 8) * s * 0.1, -s * 1.3, s * -0.2 + Math.sin(t * 6) * s * 0.12);
+  g.lineTo(-s * 0.94, s * -0.16);
+  g.closePath();
+  g.fill();
+
+  // 眼睛
+  const blink = (Math.sin(t * 6) > 0.94) ? 0.15 : 1;
+  g.fillStyle = '#fff';
+  g.beginPath();
+  g.ellipse(-s * 0.14, s * -0.16, s * 0.11, s * 0.12 * blink, 0, 0, TAU);
+  g.ellipse(s * 0.16, s * -0.17, s * 0.1, s * 0.11 * blink, 0, 0, TAU);
+  g.fill();
+  if (blink > 0.5) {
+    g.fillStyle = '#141414';
+    g.beginPath();
+    g.arc(-s * 0.11, s * -0.15, s * 0.045, 0, TAU);
+    g.arc(s * 0.19, s * -0.16, s * 0.042, 0, TAU);
+    g.fill();
+    g.fillStyle = 'rgba(255,255,255,.9)';
+    g.beginPath();
+    g.arc(-s * 0.125, s * -0.17, s * 0.015, 0, TAU);
+    g.arc(s * 0.175, s * -0.18, s * 0.014, 0, TAU);
+    g.fill();
+  }
+  // 眉毛
+  g.strokeStyle = '#3a2312';
+  g.lineWidth = s * 0.03;
+  g.beginPath();
+  g.moveTo(-s * 0.27, s * -0.3);
+  g.lineTo(-s * 0.05, s * -0.25);
+  g.moveTo(s * 0.06, s * -0.25);
+  g.lineTo(s * 0.27, s * -0.31);
+  g.stroke();
+
+  // 嘴（笑着喊）
+  g.fillStyle = '#2a1109';
+  g.beginPath();
+  g.ellipse(0, s * -0.01, s * 0.16, s * 0.09 + Math.abs(Math.sin(t * 4)) * s * 0.03, 0, 0, TAU);
+  g.fill();
+  g.fillStyle = '#fff';
+  g.fillRect(-s * 0.12, s * -0.07, s * 0.24, s * 0.03);
+
+  // 手臂（交替出拳）
+  const punch = Math.sin(t * 5.2);
+  g.fillStyle = '#623818';
+  g.beginPath();
+  g.ellipse(s * (0.62 + 0.16 * Math.max(0, punch)), s * 0.06, s * 0.22, s * 0.12, 0.25, 0, TAU);
+  g.fill();
+  g.beginPath();
+  g.ellipse(-s * (0.6 + 0.16 * Math.max(0, -punch)), s * 0.12, s * 0.2, s * 0.11, -0.25, 0, TAU);
+  g.fill();
+  // 拳头
+  g.fillStyle = '#f0c9a0';
+  g.beginPath();
+  g.arc(s * (0.82 + 0.16 * Math.max(0, punch)), s * 0.03, s * 0.1, 0, TAU);
+  g.arc(-s * (0.8 + 0.16 * Math.max(0, -punch)), s * 0.1, s * 0.09, 0, TAU);
+  g.fill();
+
+  g.restore();
+}
+
+function drawPoopScene(g, w, h, t) {
+  // 天空
+  const sky = g.createLinearGradient(0, 0, 0, h);
+  sky.addColorStop(0, '#79c7ff');
+  sky.addColorStop(0.52, '#c3e8ff');
+  sky.addColorStop(1, '#ffe6b2');
+  g.fillStyle = sky;
+  g.fillRect(0, 0, w, h);
+
+  // 放射线
+  g.save();
+  g.translate(w * 0.5, h * 0.42);
+  g.rotate(t * 0.1);
+  const rays = 24;
+  for (let i = 0; i < rays; i++) {
+    const a = (i / rays) * TAU;
+    g.fillStyle = (i % 2 === 0) ? 'rgba(255,255,255,.30)' : 'rgba(255,208,110,.18)';
+    g.beginPath();
+    g.moveTo(0, 0);
+    g.lineTo(Math.cos(a - 0.055) * w, Math.sin(a - 0.055) * h);
+    g.lineTo(Math.cos(a + 0.055) * w, Math.sin(a + 0.055) * h);
+    g.closePath();
+    g.fill();
+  }
+  g.restore();
+
+  // 云
+  for (let i = 0; i < 7; i++) {
+    const speed = 0.02 + i * 0.006;
+    const cx = (((i * 0.19 + t * speed) % 1.25) - 0.12) * w;
+    const cy = h * (0.12 + (i % 3) * 0.075);
+    drawCloud(g, cx, cy, Math.min(w, h) * (0.06 + (i % 3) * 0.012), 'rgba(255,255,255,.62)');
+  }
+
+  // 底部云海
+  g.fillStyle = 'rgba(255,255,255,.85)';
+  for (let i = 0; i < 6; i++) {
+    drawCloud(g, (i / 5) * w, h * 0.94, w * 0.13, 'rgba(255,255,255,.8)');
+  }
+
+  // 速度线
+  g.strokeStyle = 'rgba(255,255,255,.5)';
+  g.lineWidth = 2;
+  for (let i = 0; i < 12; i++) {
+    const yy = (i / 12) * h;
+    const len = 40 + (i % 3) * 30;
+    const xx = ((t * 900 + i * 130) % (w + 200)) - 100;
+    g.beginPath();
+    g.moveTo(xx, yy);
+    g.lineTo(xx - len, yy);
+    g.stroke();
+  }
+
+  // 主角
+  const dir = Math.cos(t * 0.78) >= 0 ? 1 : -1;
+  const hx = w * 0.5 + Math.sin(t * 0.78) * w * 0.24;
+  const hy = h * 0.5 + Math.sin(t * 1.75) * h * 0.08;
+  const s = Math.min(w, h) * 0.15;
+
+  // 飞行拖尾
+  g.fillStyle = 'rgba(255,246,214,.55)';
+  for (let i = 1; i <= 8; i++) {
+    const k = i / 8;
+    g.beginPath();
+    g.arc(hx - dir * s * (1.3 + k * 2.2), hy + Math.sin(t * 6 + i) * s * 0.25, s * 0.14 * (1 - k * 0.6), 0, TAU);
+    g.fill();
+  }
+
+  drawPoopHero(g, hx, hy, s, t, dir);
+
+  // 打击特效
+  const burst = Math.abs(Math.sin(t * 1.4));
+  if (burst > 0.55) {
+    const bx = hx + dir * s * 1.9, by = hy - s * 0.5;
+    const k = (burst - 0.55) / 0.45;
+    g.save();
+    g.translate(bx, by);
+    g.rotate(t * 0.6);
+    g.fillStyle = 'rgba(255,214,74,' + (0.85 * (1 - k)).toFixed(3) + ')';
+    g.beginPath();
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * TAU;
+      const r = (i % 2 === 0 ? 1 : 0.45) * s * (0.9 + k * 0.8);
+      g.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+    }
+    g.closePath();
+    g.fill();
+    g.restore();
+  }
+
+  // 标题
+  g.save();
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  const titleSize = Math.min(w, h) * 0.085;
+  g.font = '900 ' + Math.round(titleSize) + 'px "PingFang SC","Microsoft YaHei",sans-serif';
+  g.lineWidth = Math.max(4, titleSize * 0.12);
+  g.strokeStyle = '#1b1308';
+  g.strokeText('大 便 超 人', w / 2, h * 0.15);
+  g.fillStyle = '#ffe14d';
+  g.fillText('大 便 超 人', w / 2, h * 0.15);
+  g.fillStyle = '#e0362b';
+  g.font = '700 ' + Math.round(titleSize * 0.34) + 'px "PingFang SC","Microsoft YaHei",sans-serif';
+  g.fillText('POOP  MAN', w / 2, h * 0.15 + titleSize * 0.62);
+  g.restore();
+
+  // 字幕
+  const idx = Math.floor(t / 3.6) % POOP_CAPTIONS.length;
+  const cap = POOP_CAPTIONS[idx];
+  const fs = Math.min(w, h) * 0.045;
+  g.font = '700 ' + Math.round(fs) + 'px "PingFang SC","Microsoft YaHei",sans-serif';
+  const tw = g.measureText(cap).width;
+  const padX = fs * 0.8, padY = fs * 0.55;
+  const boxW = tw + padX * 2, boxH = fs + padY * 2;
+  g.fillStyle = 'rgba(12,10,8,.62)';
+  g.fillRect(w / 2 - boxW / 2, h * 0.83 - boxH / 2, boxW, boxH);
+  g.fillStyle = '#ffe9c2';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(cap, w / 2, h * 0.83);
+
+  // 广告角标
+  g.font = '700 ' + Math.round(fs * 0.5) + 'px sans-serif';
+  g.textAlign = 'left';
+  g.fillStyle = 'rgba(255,255,255,.55)';
+  g.fillText('广告', fs * 0.6, fs * 0.9);
+
+  // 轻微颗粒
+  g.fillStyle = 'rgba(0,0,0,.05)';
+  for (let i = 0; i < 90; i++) {
+    g.fillRect(Math.random() * w, Math.random() * h, 1, 1);
+  }
+}
+
+function videoFrame(now) {
+  if (!HINT.active) return;
+  const t = (now - HINT.start) / 1000;
+  if (HINT.w !== poopCanvasEl.clientWidth || HINT.h !== poopCanvasEl.clientHeight) sizePoopCanvas();
+  drawPoopScene(poopCtx, HINT.w, HINT.h, t);
+
+  const left = Math.max(0, Math.ceil(HINT.limit - t));
+  videoTimerEl.textContent = left > 0 ? ('大便超人 · ' + left + 's') : '看完了，点右上角';
+
+  if (t >= HINT.limit && !HINT.done) {
+    HINT.done = true;
+    continueBtn.hidden = false;
+  }
+  HINT.raf = requestAnimationFrame(videoFrame);
+}
+
+function openHint() {
+  if (!S || S.phase !== 'play' || HINT.active) return;
+  S.phase = 'video';
+  cancelAnimationFrame(raf);
+  raf = 0;
+  keys.clear();
+  stick.active = false;
+  stickEl.classList.remove('on');
+  hudEl.hidden = true;
+  guideTipEl.classList.remove('on');
+  noticeEl.classList.remove('on');
+
+  hintScreen.hidden = false;
+  continueBtn.hidden = true;
+  HINT.active = true;
+  HINT.done = false;
+  HINT.start = performance.now();
+  sizePoopCanvas();
+  Sound.init();
+  Sound.hintOpen();
+  Sound.poopStart();
+  HINT.raf = requestAnimationFrame(videoFrame);
+}
+
+function closeHint() {
+  if (!HINT.active) return;
+  HINT.active = false;
+  cancelAnimationFrame(HINT.raf);
+  HINT.raf = 0;
+  Sound.poopStop();
+  hintScreen.hidden = true;
+  hudEl.hidden = false;
+
+  // 黑商时刻：看视频的时间照样算进本局
+  S.t += HINT.limit;
+  S.phase = 'play';
+  S.nextPass = Math.max(S.nextPass, S.t + 9);
+  S.nextHunt = Math.max(S.nextHunt, S.t + 12);
+
+  const from = playerCell();
+  S.guide = { pts: buildPath(from, S.level.exit), start: S.t, until: S.t + 10 };
+  Sound.guide();
+  showNotice('红线只亮 10 秒，自己记住路');
+  updateGuideTip();
+
+  last = performance.now();
+  startLoop();
 }
 
 /* ============================================================
@@ -1455,11 +2711,29 @@ restartBtn.addEventListener('click', () => {
   newGame('play');
   hudEl.hidden = false;
   S.nextPass = 14;
+  S.nextScare = rand(32, 52);
+  S.nextFlicker = rand(16, 32);
+  S.nextKnock = rand(12, 24);
+  S.creakAt = 8;
+  S.guide = null;
+  guideTipEl.classList.remove('on');
+  Sound.init();
+  Sound.ambience(true);
   hintEl.classList.add('on');
   setTimeout(() => hintEl.classList.remove('on'), 7000);
   startLoop();
 });
 pauseBtn.addEventListener('click', togglePause);
+pauseRestartBtn.addEventListener('click', () => { pauseScreen.hidden = true; restartBtn.click(); });
+
+hintBtn.addEventListener('click', openHint);
+continueBtn.addEventListener('click', closeHint);
+soundBtn.addEventListener('click', () => {
+  Sound.init();
+  const on = Sound.toggle();
+  soundBtn.classList.toggle('off', !on);
+  if (on && S && S.phase === 'play') Sound.ambience(true);
+});
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && S && S.phase === 'play') togglePause();
