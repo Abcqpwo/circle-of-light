@@ -92,6 +92,26 @@ body{
 }
 .guide-tip.on{opacity:1}
 
+/* 标题页版本 */
+.ver-title{
+  margin:0 0 22px;font-size:10px;letter-spacing:.3em;text-indent:.3em;
+  color:rgba(216,211,197,.34);
+}
+
+/* 关卡指示 / 版本号 */
+.floor{
+  position:absolute;left:50%;top:max(20px, env(safe-area-inset-top));
+  transform:translateX(-50%);
+  font-size:10px;letter-spacing:.32em;text-indent:.32em;
+  color:rgba(216,211,197,.44);white-space:nowrap;pointer-events:none;
+}
+.ver{
+  position:absolute;right:max(16px, env(safe-area-inset-right));
+  bottom:max(18px, calc(env(safe-area-inset-bottom) + 14px));
+  font-size:9px;letter-spacing:.18em;
+  color:rgba(216,211,197,.26);pointer-events:none;z-index:3;
+}
+
 /* 电量条：低电量时呼吸闪烁 */
 .battery{
   position:absolute;left:max(18px, env(safe-area-inset-left));
@@ -315,6 +335,7 @@ body{
     <span class="q">?</span>提示
   </button>
   <div class="guide-tip" id="guideTip"></div>
+  <div class="floor" id="floorTag">第 1 / 5 关</div>
   <div class="battery" id="batteryWrap">
     <span class="battery-label">电量</span>
     <span class="battery-track"><span class="battery-fill" id="batteryFill"></span></span>
@@ -335,6 +356,7 @@ body{
 </div>
 
 <div class="notice" id="notice"></div>
+<div class="ver" id="verBadge">v1.0</div>
 
 <div class="stick" id="stick">
   <span class="stick-knob" id="stickKnob"></span>
@@ -344,7 +366,8 @@ body{
   <div class="glow"></div>
   <div class="title-wrap">
     <h1 class="title">光圈之外</h1>
-    <p class="sub">手电筒只照亮身前一小圈。迷宫深处有一扇门，找到它。</p>
+    <p class="sub">手电筒只照亮身前一小圈。五层迷宫，各有各的门。</p>
+    <p class="ver-title">v1.0 · 正式版</p>
     <button class="btn" id="startBtn">进入黑暗</button>
     <p class="meta" id="titleMeta">WASD / 方向键 移动 · 迷路了就看左上角「提示」</p>
   </div>
@@ -538,6 +561,33 @@ const Sound = (() => {
       noise(0.85, 0.016, 'bandpass', 620, 0.9);
       noise(0.7, 0.012, 'bandpass', 480, 0.8, null, 0.9);
     },
+    rattle(v) {
+      const k = v || 1;
+      noise(0.18, 0.05 * k, 'bandpass', 1200, 2.4);
+      tone(140 + Math.random() * 90, 0.14, 0.03 * k, 'square');
+      noise(0.22, 0.03 * k, 'highpass', 2400, 1.2, null, 0.12);
+    },
+    cageBreak() {
+      noise(0.55, 0.22, 'lowpass', 900, 1.4);
+      noise(0.4, 0.14, 'bandpass', 1800, 1.6, null, 0.05);
+      tone(2100, 0.35, 0.12, 'sawtooth', 300);
+      tone(88, 0.6, 0.14, 'sine', 40, 0.03);
+    },
+    roar() {
+      tone(64, 1.5, 0.18, 'sawtooth', 34);
+      tone(108, 1.2, 0.1, 'square', 58, 0.06);
+      noise(1.3, 0.1, 'lowpass', 420, 0.8, 120, 0.02);
+    },
+    crunch() {
+      noise(0.12, 0.3, 'lowpass', 900, 1.1);
+      noise(0.2, 0.22, 'bandpass', 2400, 2.2, null, 0.05);
+      tone(52, 0.5, 0.18, 'sine', 30);
+    },
+    levelUp() {
+      tone(392, 0.5, 0.05, 'sine');
+      tone(523, 0.6, 0.045, 'sine', null, 0.18);
+      tone(784, 1.0, 0.03, 'sine', null, 0.4);
+    },
     win() {
       tone(523, 0.7, 0.1, 'sine');
       tone(659, 0.7, 0.075, 'sine', null, 0.12);
@@ -575,6 +625,7 @@ const Sound = (() => {
 const CELL = 64;
 const MAP_W = 21;
 const MAP_H = 21;
+const TOTAL_LEVELS = 5;
 const PLAYER_R = 9.5;
 const SPEED = 142;
 const HUNT_SPEED = 90;
@@ -612,6 +663,7 @@ const statEvents = document.getElementById('statEvents');
 const statBest = document.getElementById('statBest');
 const hintBtn = document.getElementById('hintBtn');
 const guideTipEl = document.getElementById('guideTip');
+const floorTagEl = document.getElementById('floorTag');
 const batteryWrap = document.getElementById('batteryWrap');
 const batteryFill = document.getElementById('batteryFill');
 const soundBtn = document.getElementById('soundBtn');
@@ -1163,10 +1215,14 @@ function movePlayer(dt) {
   P.vx = lerp(P.vx, tvx, k);
   P.vy = lerp(P.vy, tvy, k);
 
+  const cageBlock = S.cage && !S.cage.broken;
+  const blockX = (x, y) => cageBlock && Math.hypot(x - S.cage.x, y - S.cage.y) < 33;
+  const blockY = (x, y) => cageBlock && Math.hypot(x - S.cage.x, y - S.cage.y) < 33;
+
   const nx = P.x + P.vx * dt;
-  if (!hitsWall(nx, P.y)) P.x = nx; else P.vx *= 0.4;
+  if (!hitsWall(nx, P.y) && !blockX(nx, P.y)) P.x = nx; else P.vx *= 0.4;
   const ny = P.y + P.vy * dt;
-  if (!hitsWall(P.x, ny)) P.y = ny; else P.vy *= 0.4;
+  if (!hitsWall(P.x, ny) && !blockY(P.x, ny)) P.y = ny; else P.vy *= 0.4;
 
   const sp = Math.hypot(P.vx, P.vy);
   if (sp > 14) {
@@ -1391,6 +1447,181 @@ function triggerScare() {
   buzz([0, 45, 55, 45]);
 }
 
+function drawCage(t, glow) {
+  const c = S.cage;
+  if (!c) return;
+
+  const u = c.broken ? 0 : clamp(c.t / c.dur, 0, 1);
+  const dist = Math.hypot(c.x - P.x, c.y - P.y);
+  const lit = clamp(1 - dist / (LIGHT_R * 2.2), 0.16, 1);
+
+  ctx.save();
+  ctx.globalAlpha = lit;
+  ctx.translate(c.x, c.y);
+
+  // 地面上的锈迹阴影
+  ctx.fillStyle = 'rgba(10,8,7,.6)';
+  ctx.beginPath();
+  ctx.ellipse(0, 10, 30, 20, 0, 0, TAU);
+  ctx.fill();
+
+  if (!c.broken) {
+    const shake = 0.6 + u * 3.2;
+    ctx.translate(rand(-shake, shake) * 0.6, rand(-shake, shake) * 0.6);
+    ctx.rotate(c.angle);
+
+    // 俯视看下去的铁笼：方形笼顶 + 格栅
+    const W = 46;
+
+    ctx.fillStyle = 'rgba(24,20,17,.55)';
+    ctx.fillRect(-W / 2, -W / 2, W, W);
+
+    // 笼顶格栅
+    ctx.strokeStyle = 'rgba(150,132,104,.9)';
+    ctx.lineWidth = 2;
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath(); ctx.moveTo(i * 13, -W / 2 + 2); ctx.lineTo(i * 13, W / 2 - 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-W / 2 + 2, i * 13); ctx.lineTo(W / 2 - 2, i * 13); ctx.stroke();
+    }
+
+    // 外框
+    ctx.strokeStyle = 'rgba(176,156,120,.95)';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(-W / 2, -W / 2, W, W);
+
+    // 四角铆钉
+    ctx.fillStyle = 'rgba(196,176,140,.9)';
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
+      ctx.beginPath();
+      ctx.arc(sx * (W / 2 - 4), sy * (W / 2 - 4), 2.2, 0, TAU);
+      ctx.fill();
+    }
+
+    // 锁在靠前一角
+    ctx.save();
+    ctx.translate(0, W / 2 - 6);
+    ctx.fillStyle = 'rgba(188,168,128,.95)';
+    ctx.fillRect(-5, -3, 10, 9);
+    ctx.strokeStyle = 'rgba(188,168,128,.95)';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.arc(0, -3, 3.6, Math.PI, 0);
+    ctx.stroke();
+    ctx.restore();
+
+    // 锈斑
+    ctx.fillStyle = 'rgba(124,64,34,.45)';
+    ctx.fillRect(-W / 2 + 7, -W / 2 + 9, 9, 5);
+    ctx.fillRect(W / 2 - 16, W / 2 - 14, 7, 6);
+
+    // 红色警示灯
+    const blink = 0.35 + 0.65 * Math.abs(Math.sin(t * (1.4 + u * 7)));
+    ctx.save();
+    ctx.translate(0, -W / 2 - 6);
+    ctx.fillStyle = 'rgba(232,236,240,.55)';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 4.5, 5, 0, 0, TAU);
+    ctx.fill();
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 16);
+    g.addColorStop(0, 'rgba(220,52,38,' + (0.55 * blink).toFixed(3) + ')');
+    g.addColorStop(1, 'rgba(220,52,38,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(0, 0, 16, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  } else {
+    // 炸开后：倒在地上、弯折的铁栏
+    ctx.save();
+    ctx.rotate(c.angle + Math.PI / 2 + 0.4);
+    for (let i = 0; i < 5; i++) {
+      ctx.save();
+      ctx.translate(-22 + i * 10, 14 + (i % 2) * 3);
+      ctx.rotate(-0.9 + i * 0.12);
+      ctx.fillStyle = 'rgba(120,102,80,.55)';
+      ctx.fillRect(-1.6, -6, 3.2, 26);
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  // 尘烟
+  for (const sm of S.cageSmoke) {
+    const x = sm.x - c.x, y = sm.y - c.y;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, sm.r);
+    g.addColorStop(0, 'rgba(126,116,102,' + (sm.a * 0.55).toFixed(3) + ')');
+    g.addColorStop(1, 'rgba(126,116,102,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, sm.r, 0, TAU);
+    ctx.fill();
+  }
+
+  // 飞散的铁条
+  for (const sh of S.cageShards) {
+    ctx.save();
+    ctx.translate(sh.x - c.x, sh.y - c.y);
+    ctx.rotate(sh.rot);
+    ctx.fillStyle = 'rgba(146,128,100,' + clamp(sh.life, 0, 1).toFixed(3) + ')';
+    ctx.fillRect(-sh.len / 2, -sh.w / 2, sh.len, sh.w);
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+function drawCageCountdown(t) {
+  const c = S.cage;
+  if (!c || c.broken) return;
+
+  const left = Math.max(0, Math.ceil(c.dur - c.t));
+  const u = clamp(c.t / c.dur, 0, 1);
+  const w = D.w, h = D.h;
+
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = '600 ' + Math.round(Math.min(w, h) * 0.13) + 'px ui-monospace, monospace';
+  const pulse = 0.55 + 0.45 * Math.abs(Math.sin(t * (1.2 + u * 3)));
+  ctx.fillStyle = (left <= 3)
+    ? 'rgba(214,58,40,' + (0.55 + 0.4 * pulse).toFixed(3) + ')'
+    : 'rgba(216,211,197,.5)';
+  ctx.fillText(String(left), w / 2, h * 0.3);
+
+  ctx.font = '400 ' + Math.round(Math.min(w, h) * 0.032) + 'px -apple-system, "PingFang SC", sans-serif';
+  ctx.fillStyle = 'rgba(216,211,197,.35)';
+  ctx.fillText('笼子里有东西', w / 2, h * 0.3 + Math.min(w, h) * 0.09);
+  ctx.restore();
+}
+
+function drawHeadFX() {
+  if (!S.headShards) return;
+
+  for (const sh of S.headShards) {
+    ctx.save();
+    ctx.translate(sh.x, sh.y);
+    ctx.rotate(sh.rot);
+    const a = clamp(sh.life, 0, 1);
+    ctx.fillStyle = 'rgba(18,16,18,' + a.toFixed(3) + ')';
+    ctx.beginPath();
+    ctx.moveTo(-sh.r, -sh.r * 0.6);
+    ctx.lineTo(sh.r * 0.9, -sh.r);
+    ctx.lineTo(sh.r, sh.r * 0.8);
+    ctx.lineTo(-sh.r * 0.5, sh.r);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  for (const dp of S.headSpray) {
+    const a = clamp(dp.life, 0, 1);
+    ctx.fillStyle = 'rgba(150,22,16,' + (a * 0.85).toFixed(3) + ')';
+    ctx.beginPath();
+    ctx.arc(dp.x, dp.y, dp.r * (0.6 + a * 0.6), 0, TAU);
+    ctx.fill();
+  }
+}
+
 function drawScare() {
   if (!S || !S.scareT) return;
   const k = S.scareT;
@@ -1430,14 +1661,17 @@ function updateAmbient(dt) {
   }
   if (S.flickT > 0) S.flickT -= dt;
 
-  if (S.t >= S.nextScare) {
-    S.nextScare = S.t + rand(42, 78);
+  // 突脸只在快到铁门时来一次：离出口 300px 以内，每关最多一次
+  const dxExit = S.exit.x - P.x, dyExit = S.exit.y - P.y;
+  const dExit = Math.sqrt(dxExit * dxExit + dyExit * dyExit);
+  if (!S.doorScareDone && dExit < 300 && S.scareT <= 0) {
+    S.doorScareDone = true;
     triggerScare();
   }
   if (S.scareT) S.scareT += dt;
 
   // 心跳
-  if (E.active && E.mode === 'hunt') {
+  if (E.active && (E.mode === 'hunt' || E.mode === 'boss')) {
     const dx = E.x - P.x, dy = E.y - P.y;
     const d = Math.sqrt(dx * dx + dy * dy);
     const near = clamp(1 - d / (LIGHT_R * 2.4), 0, 1);
@@ -1459,7 +1693,7 @@ function updateAmbient(dt) {
   }
 
   // 追猎时若有若无的呼吸声
-  if (E.active && E.mode === 'hunt') {
+  if (E.active && (E.mode === 'hunt' || E.mode === 'boss')) {
     const bx = E.x - P.x, by = E.y - P.y;
     const bd = Math.sqrt(bx * bx + by * by);
     if (bd < LIGHT_R * 3.2) {
@@ -1595,7 +1829,7 @@ function finishEntity() {
     S.nextHunt = Math.min(S.nextHunt, S.t + rand(40, 64));
   }
   // 它擦过去之后，偶尔回头给你看一眼
-  if (S.events >= 2 && Math.random() < 0.26) triggerScare();
+  // v1.0：掠过不再随机突脸，只有门口那一次
 }
 
 function updateEntity(dt) {
@@ -1625,26 +1859,35 @@ function updateEntity(dt) {
       S.dangerText = false;
       finishEntity();
     }
-  } else if (E.mode === 'hunt') {
+  } else if (E.mode === 'hunt' || E.mode === 'boss') {
+    const boss = E.mode === 'boss';
     E.life += dt;
-    // 被吓过越多次，它越熟路
-    const hs = HUNT_SPEED + Math.min(28, S.events * 3);
+    // 后面的关卡：它更熟路、更快；第五关那只看不见你的声音，只会一直加速
+    const hs = (boss ? 96 : S.huntBase || HUNT_SPEED)
+      + (boss ? Math.min(46, E.life * 1.35) : Math.min(28, S.events * 3));
 
-    // —— 它靠声音找你 ——
-    // 你在跑，它就听得见；你贴着墙站住不动，它只能扑向你最后消失的地方
-    const sp = Math.hypot(P.vx, P.vy);
-    const pd = Math.hypot(P.x - E.x, P.y - E.y);
-    if (sp > 32 || pd < 108) {
-      if (E.alertT <= 0) {
-        S.quietT = 0;
-      }
-      E.alertT = 1.8;
+    if (boss) {
+      E.alertT = 3;
       E.lastSeen = { x: P.x, y: P.y };
-      E.lostT = 0;
-      E.lostNoted = false;
       E.fade = 1;
+      E.lostNoted = true;
     } else {
-      E.alertT -= dt;
+      // —— 它靠声音找你 ——
+      // 你在跑，它就听得见；你贴着墙站住不动，它只能扑向你最后消失的地方
+      const sp = Math.hypot(P.vx, P.vy);
+      const pd = Math.hypot(P.x - E.x, P.y - E.y);
+      if (sp > 32 || pd < 108) {
+        if (E.alertT <= 0) {
+          S.quietT = 0;
+        }
+        E.alertT = 1.8;
+        E.lastSeen = { x: P.x, y: P.y };
+        E.lostT = 0;
+        E.lostNoted = false;
+        E.fade = 1;
+      } else {
+        E.alertT -= dt;
+      }
     }
 
     // 追不上时的最后一点“听觉余温”：站在它最后听见的位置附近仍会被抓
@@ -1696,9 +1939,13 @@ function updateEntity(dt) {
     E.angle += diff * (1 - Math.exp(-dt * 5));
 
     const d = Math.hypot(E.x - P.x, E.y - P.y);
-    if (d < 26) { caught(); return; }
+    if (d < 26) {
+      if (boss) headshot();
+      else caught();
+      return;
+    }
 
-    if (!chasing) {
+    if (!boss && !chasing) {
       E.lostT = (E.lostT || 0) + dt;
       if (E.lostT > 0.9) {
         if (!E.lostNoted) { E.lostNoted = true; showNotice('它失去了你的声音'); }
@@ -1706,7 +1953,7 @@ function updateEntity(dt) {
       }
     }
 
-    if (E.life > E.dur || E.fade <= 0) {
+    if (!boss && (E.life > E.dur || E.fade <= 0)) {
       // 放弃追击，慢慢退走
       E.fade -= dt * 1.4;
       if (E.fade <= 0) {
@@ -1730,6 +1977,7 @@ function caught() {
   if (S.phase !== 'play') return;
   S.phase = 'dying';
   S.dieT = 0;
+  S.dieKind = 'caught';
   C.amp = 16;
   Sound.death();
   buzz([110, 60, 160]);
@@ -1819,7 +2067,8 @@ function placeBatteries(level) {
   return list;
 }
 
-function newGame(phase) {
+function newGame(phase, levelNum, totalTime) {
+  const n = levelNum || 1;
   const level = generateLevel();
   const startPos = cellCenter(level.start);
   const exitPos = cellCenter(level.exit);
@@ -1834,23 +2083,34 @@ function newGame(phase) {
   E.active = false;
   E.trail.length = 0;
   E.fade = 1;
+  E.mode = '';
+  E.path = null;
 
   S = {
     phase: phase,
     t: 0,
+    levelNum: n,
+    totalTime: totalTime || 0,
+    won: false,
     level: level,
     exit: exitPos,
     mapLayer: buildMapLayer(level),
     events: 0,
-    nextPass: 14,
+    // 关卡越高，它来得越勤
+    nextPass: Math.max(6, 14 - (n - 1) * 1.8),
     nextHunt: Infinity,
+    huntBase: HUNT_SPEED + (n - 1) * 4,
+    drain: 0.0042 * (1 + (n - 1) * 0.12),
     beamScale: 1,
     motes: [],
     dieT: 0,
+    dieKind: '',
+    headT: 0,
     winT: 0,
-    // 恐怖事件调度
-    nextScare: rand(32, 52),
+    // 恐怖事件调度：突脸只在门口触发，每关一次
+    nextScare: Infinity,
     scareT: 0,
+    doorScareDone: false,
     nextFlicker: rand(16, 32),
     flickT: 0,
     nextKnock: rand(12, 24),
@@ -1865,38 +2125,78 @@ function newGame(phase) {
     hudBattery: -1,
     nextDrip: rand(10, 22),
     breathT: 0,
-    eyes: null
+    eyes: null,
+    // 第五关：铁笼
+    cage: null,
+    boss: null,
+    cageShards: [],
+    cageSmoke: [],
+    headShards: [],
+    headSpray: [],
+    rattleT: 0
   };
   S.motes = initMotes();
+
+  if (n === 5) setupCageLevel();
 }
 
-function beginPlay() {
+/* 取迷宫中距起点约 dist 像素的走廊点 */
+function pathPointAt(level, dist) {
+  const pts = buildPath(level.start, level.exit, { x: P.x, y: P.y });
+  let acc = 0;
+  for (let i = 1; i < pts.length; i++) {
+    acc += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+    if (acc >= dist) return pts[i];
+  }
+  return pts[pts.length - 1];
+}
+
+/* 第 5 关开场：正前方摆一个铁笼，10 秒后里面的东西出来 */
+function setupCageLevel() {
+  const p = pathPointAt(S.level, 150);
+  S.cage = {
+    x: p.x,
+    y: p.y,
+    t: 0,
+    dur: 10,
+    broken: false,
+    angle: Math.atan2(p.y - P.y, p.x - P.x)
+  };
+  P.angle = S.cage.angle;
+  // 笼子没炸开之前，别的事件都先停
+  S.nextPass = Infinity;
+  S.nextHunt = Infinity;
+  S.nextScare = Infinity;
+  S.nextDrip = rand(6, 12);
+}
+
+/* 进入第 n 关（含从标题页开始） */
+function startLevel(n) {
+  const total = (n === 1 || !S) ? 0 : S.totalTime + S.t;
+  newGame('play', n, total);
+
   titleScreen.hidden = true;
   pauseScreen.hidden = true;
   endScreen.hidden = true;
   hudEl.hidden = false;
-  S.phase = 'play';
-  S.t = 0;
-  S.nextPass = 14;
-  S.nextHunt = Infinity;
-  S.nextScare = rand(32, 52);
-  S.scareT = 0;
-  S.nextFlicker = rand(16, 32);
-  S.flickT = 0;
-  S.nextKnock = rand(12, 24);
-  S.creakAt = 8;
-  S.guide = null;
-  S.stepAcc = 0;
-  S.heartT = 0;
+  floorTagEl.textContent = '第 ' + n + ' / ' + TOTAL_LEVELS + ' 关';
   guideTipEl.classList.remove('on');
+  noticeEl.classList.remove('on');
 
-  // 首次点击是解锁 AudioContext 的唯一合法时机
   Sound.init();
   Sound.ambience(true);
 
+  hintEl.textContent = ('ontouchstart' in window)
+    ? '拖动屏幕移动 · 找到出口'
+    : 'WASD / 方向键 移动 · 找到出口';
   hintEl.classList.add('on');
-  setTimeout(() => hintEl.classList.remove('on'), 8200);
+  clearTimeout(startLevel._t);
+  startLevel._t = setTimeout(() => hintEl.classList.remove('on'), 6500);
   startLoop();
+}
+
+function beginPlay() {
+  startLevel(1);
 }
 
 function togglePause() {
@@ -1918,6 +2218,7 @@ function togglePause() {
 
 function showEnd(isWin) {
   S.phase = 'end';
+  S.won = !!isWin;
   cancelAnimationFrame(raf);
   raf = 0;
   hudEl.hidden = true;
@@ -1925,19 +2226,34 @@ function showEnd(isWin) {
   guideTipEl.classList.remove('on');
   Sound.ambience(false);
 
-  const sec = S.t;
+  const lvl = S.levelNum;
+  const isFinal = isWin && lvl >= TOTAL_LEVELS;
+  const hasNext = isWin && !isFinal;
+  const totalSec = S.totalTime + S.t;
+  const sec = isWin ? S.t : totalSec;
   const battLeft = Math.round((S.battery || 0) * 100);
-  const escTotal = readEscapes() + (isWin ? 1 : 0);
-  endEyebrow.textContent = isWin ? ('ESCAPED · 第 ' + escTotal + ' 次') : 'CAUGHT';
-  endTitle.textContent = isWin ? '你出来了' : '它找到了你';
-  endNote.textContent = (isWin ? '门在身后合上，走廊安静了' : '它走了。手电还亮着')
-    + ' · 电量 ' + battLeft + '%';
 
-  if (isWin) {
+  if (isFinal) {
     const prev = readBest();
-    if (prev === null || sec < prev) writeBest(sec);
+    if (prev === null || totalSec < prev) writeBest(totalSec);
     addEscape();
     updateTitleMeta();
+    Sound.levelUp();
+    endEyebrow.textContent = 'ALL CLEAR · 第 ' + readEscapes() + ' 次';
+    endTitle.textContent = '你出来了';
+    endNote.textContent = '五层都在身后合上了 · 总用时 ' + formatTime(totalSec);
+    restartBtn.textContent = '从头再来';
+  } else if (hasNext) {
+    Sound.levelUp();
+    endEyebrow.textContent = 'FLOOR CLEARED · ' + lvl + ' / ' + TOTAL_LEVELS;
+    endTitle.textContent = '这一层出来了';
+    endNote.textContent = '下一层更深 · 电量 ' + battLeft + '%';
+    restartBtn.textContent = '下一关';
+  } else {
+    endEyebrow.textContent = 'CAUGHT · ' + lvl + ' / ' + TOTAL_LEVELS;
+    endTitle.textContent = S.dieKind === 'headshot' ? '它带走了你的头' : '它找到了你';
+    endNote.textContent = (S.dieKind === 'headshot' ? '红的只有一瞬' : '它走了。手电还亮着') + ' · 电量 ' + battLeft + '%';
+    restartBtn.textContent = '重试第 ' + lvl + ' 关';
   }
 
   statTime.textContent = formatTime(sec);
@@ -1948,10 +2264,174 @@ function showEnd(isWin) {
 }
 
 /* ============================================================
+   第 5 关：笼子 / 追逐 / 爆头
+============================================================ */
+function updateCage(dt) {
+  const c = S.cage;
+  if (!c) return;
+
+  if (!c.broken) {
+    c.t += dt;
+    const u = clamp(c.t / c.dur, 0, 1);
+    S.rattleT -= dt;
+    if (S.rattleT <= 0) {
+      S.rattleT = lerp(2.4, 0.28, u);
+      Sound.rattle(0.35 + u * 0.9);
+      C.amp = Math.max(C.amp, 0.8 + u * 3.4);
+      buzz(Math.round(4 + u * 20));
+    }
+    if (c.t >= c.dur) breakCage();
+  }
+
+  for (const sh of S.cageShards) {
+    sh.x += sh.vx * dt;
+    sh.y += sh.vy * dt;
+    sh.vx *= 1 - dt * 3.4;
+    sh.vy *= 1 - dt * 3.4;
+    sh.rot += sh.spin * dt;
+    sh.life -= dt * 0.5;
+  }
+  S.cageShards = S.cageShards.filter(sh => sh.life > 0);
+
+  for (const sm of S.cageSmoke) {
+    sm.x += sm.vx * dt;
+    sm.y += sm.vy * dt;
+    sm.r += sm.grow * dt;
+    sm.a -= dt * 0.42;
+  }
+  S.cageSmoke = S.cageSmoke.filter(sm => sm.a > 0);
+}
+
+function breakCage() {
+  const c = S.cage;
+  c.broken = true;
+  Sound.cageBreak();
+  Sound.roar();
+  C.amp = 20;
+  buzz([60, 40, 90, 40, 150]);
+
+  for (let i = 0; i < 28; i++) {
+    const ang = c.angle + rand(-1.7, 1.7);
+    const sp = rand(90, 420);
+    S.cageShards.push({
+      x: c.x + rand(-14, 14),
+      y: c.y + rand(-14, 14),
+      vx: Math.cos(ang) * sp,
+      vy: Math.sin(ang) * sp,
+      len: rand(8, 26),
+      w: rand(2, 4),
+      rot: rand(0, TAU),
+      spin: rand(-14, 14),
+      life: rand(0.6, 1.5)
+    });
+  }
+  for (let i = 0; i < 14; i++) {
+    S.cageSmoke.push({
+      x: c.x + rand(-30, 30),
+      y: c.y + rand(-30, 30),
+      vx: rand(-26, 26),
+      vy: rand(-26, 26),
+      r: rand(10, 22),
+      grow: rand(16, 34),
+      a: rand(0.16, 0.34)
+    });
+  }
+
+  E.active = true;
+  E.mode = 'boss';
+  E.x = c.x;
+  E.y = c.y;
+  E.vx = 0;
+  E.vy = 0;
+  E.angle = c.angle;
+  E.life = 0;
+  E.dur = Infinity;
+  E.alertT = 3;
+  E.fade = 1;
+  E.trail.length = 0;
+  E.path = null;
+  E.pathT = 0;
+  E.sounded = false;
+
+  showNotice('笼子开了 · 跑');
+}
+
+function headshot() {
+  if (S.phase !== 'play') return;
+
+  S.phase = 'headshot';
+  S.dieT = 0;
+  S.headT = 0;
+  S.dieKind = 'headshot';
+  noticeEl.classList.remove('on');
+  guideTipEl.classList.remove('on');
+  C.amp = 26;
+  Sound.crunch();
+  setTimeout(() => {
+    if (S && S.phase === 'headshot') Sound.death();
+  }, 160);
+  buzz([220, 70, 260]);
+
+  S.headShards = [];
+  S.headSpray = [];
+  for (let i = 0; i < 15; i++) {
+    const ang = rand(0, TAU);
+    const sp = rand(70, 300);
+    S.headShards.push({
+      x: P.x, y: P.y,
+      vx: Math.cos(ang) * sp,
+      vy: Math.sin(ang) * sp,
+      r: rand(2.4, 7),
+      rot: rand(0, TAU),
+      spin: rand(-12, 12),
+      life: rand(0.6, 1.5)
+    });
+  }
+  for (let i = 0; i < 34; i++) {
+    const ang = rand(-1.1, 1.1);
+    const sp = rand(60, 320);
+    S.headSpray.push({
+      x: P.x + Math.cos(ang) * rand(0, 8),
+      y: P.y + Math.sin(ang) * rand(0, 8),
+      vx: Math.cos(ang) * sp,
+      vy: Math.sin(ang) * sp,
+      r: rand(1.2, 3.4),
+      life: rand(0.8, 1.7)
+    });
+  }
+
+  E.x = P.x;
+  E.y = P.y;
+  E.angle = P.angle + Math.PI;
+  stick.active = false;
+  stickEl.classList.remove('on');
+  keys.clear();
+}
+
+function updateHeadFX(dt) {
+  if (!S.headShards) return;
+  for (const sh of S.headShards) {
+    sh.x += sh.vx * dt;
+    sh.y += sh.vy * dt;
+    sh.vx *= 1 - dt * 2.2;
+    sh.vy *= 1 - dt * 2.2;
+    sh.rot += sh.spin * dt;
+    sh.life -= dt * 0.5;
+  }
+  for (const dp of S.headSpray) {
+    dp.x += dp.vx * dt;
+    dp.y += dp.vy * dt;
+    dp.vx *= 1 - dt * 4;
+    dp.vy *= 1 - dt * 4;
+    dp.life -= dt * 0.45;
+  }
+}
+
+/* ============================================================
    更新
 ============================================================ */
 function updateBattery(dt) {
-  S.battery = Math.max(0, S.battery - dt * 0.0042);
+  S.battery = Math.max(0, S.battery - dt * (S.drain || 0.0042));
 
   for (const b of S.batteries) {
     if (b.taken) continue;
@@ -1998,8 +2478,16 @@ function update(dt, t) {
     updateBattery(dt);
     S.beamScale = beamScaleAt(S.t);
     updateEntity(dt);
+    updateCage(dt);
     updateDirector(S.t);
     checkExit();
+  } else if (S.phase === 'headshot') {
+    S.dieT += dt;
+    S.headT += dt;
+    updateHeadFX(dt);
+    updateCamera(dt);
+    S.beamScale = beamScaleAt(S.t) * (1 - clamp(S.dieT * 1.1, 0, 1) * 0.75);
+    if (S.dieT > 1.75) showEnd(false);
   } else if (S.phase === 'dying') {
     S.dieT += dt;
     updateCamera(dt);
@@ -2418,6 +2906,7 @@ function draw(t) {
   drawDoorFx(t);
   drawExitGlow(t);
   drawBatteries(t);
+  drawCage(t, true);
   drawEyes();
   drawGuide();
   if (S.phase === 'dying') drawEntityBody();
@@ -2426,6 +2915,20 @@ function draw(t) {
   ctx.restore();
 
   drawScare();
+  drawCageCountdown(t);
+
+  ctx.save();
+  ctx.translate(w / 2, h / 2);
+  ctx.scale(D.scale, D.scale);
+  ctx.translate(-camX, -camY);
+  if (S.phase === 'headshot' || S.phase === 'dying') drawHeadFX();
+  ctx.restore();
+
+  if (S.phase === 'headshot') {
+    const k = clamp(S.dieT / 1.75, 0, 1);
+    ctx.fillStyle = 'rgba(118,16,10,' + (0.62 * (1 - k * 0.55)).toFixed(3) + ')';
+    ctx.fillRect(0, 0, w, h);
+  }
 
   if (S.phase === 'dying') {
     const f = Math.max(0, 1 - S.dieT * 2.6) * 0.34;
@@ -2862,24 +3365,13 @@ function closeHint() {
 startBtn.addEventListener('click', beginPlay);
 resumeBtn.addEventListener('click', () => { pauseScreen.hidden = true; S.phase = 'play'; last = performance.now(); startLoop(); });
 restartBtn.addEventListener('click', () => {
-  endScreen.hidden = true;
-  newGame('play');
-  hudEl.hidden = false;
-  S.nextPass = 14;
-  S.nextScare = rand(32, 52);
-  S.nextFlicker = rand(16, 32);
-  S.nextKnock = rand(12, 24);
-  S.creakAt = 8;
-  S.guide = null;
-  guideTipEl.classList.remove('on');
-  Sound.init();
-  Sound.ambience(true);
-  hintEl.classList.add('on');
-  setTimeout(() => hintEl.classList.remove('on'), 7000);
-  startLoop();
+  const lvl = S ? S.levelNum : 1;
+  if (S && S.won && lvl < TOTAL_LEVELS) startLevel(lvl + 1);
+  else if (S && S.won && lvl >= TOTAL_LEVELS) startLevel(1);
+  else startLevel(lvl);
 });
 pauseBtn.addEventListener('click', togglePause);
-pauseRestartBtn.addEventListener('click', () => { pauseScreen.hidden = true; restartBtn.click(); });
+pauseRestartBtn.addEventListener('click', () => { pauseScreen.hidden = true; startLevel(S ? S.levelNum : 1); });
 
 hintBtn.addEventListener('click', openHint);
 continueBtn.addEventListener('click', closeHint);
