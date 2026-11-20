@@ -1276,7 +1276,7 @@ function playerCell() {
   return { cx: Math.floor(P.x / CELL), cy: Math.floor(P.y / CELL) };
 }
 
-function buildPath(from, to) {
+function buildPath(from, to, startPt) {
   const W = MAP_W, H = MAP_H, grid = S.level.grid;
   const total = W * H;
   const prev = new Int32Array(total);
@@ -1312,7 +1312,7 @@ function buildPath(from, to) {
   }
   cells.reverse();
   const pts = cells.map(cellCenter);
-  pts.unshift({ x: P.x, y: P.y });
+  pts.unshift(startPt || { x: P.x, y: P.y });
   return pts;
 }
 
@@ -1388,6 +1388,7 @@ function triggerScare() {
   S.scareJitterA = rand(0, TAU);
   C.amp = Math.max(C.amp, 12);
   Sound.screech();
+  buzz([0, 45, 55, 45]);
 }
 
 function drawScare() {
@@ -1524,25 +1525,52 @@ function spawnPass() {
 }
 
 function spawnHunt() {
-  const ang = rand(0, TAU);
-  const d = LIGHT_R * 2.6;
-  E.x = P.x + Math.cos(ang) * d;
-  E.y = P.y + Math.sin(ang) * d;
+  // 在走廊里挑一个离玩家不远、但看不见的格子出现，保证它不会卡在墙里
+  const pc = playerCell();
+  const minD = LIGHT_R * 1.7;
+  const maxD = LIGHT_R * 3.4;
+  const candidates = [];
+  for (let cy = 1; cy < MAP_H - 1; cy++) {
+    for (let cx = 1; cx < MAP_W - 1; cx++) {
+      if (S.level.grid[cy][cx] !== 0) continue;
+      const px = cx * CELL + CELL / 2;
+      const py = cy * CELL + CELL / 2;
+      const d = Math.hypot(px - P.x, py - P.y);
+      if (d >= minD && d <= maxD) candidates.push({ x: px, y: py });
+    }
+  }
+  let spot = candidates.length ? candidates[Math.floor(Math.random() * candidates.length)] : null;
+  if (!spot) {
+    const c = cellCenter({ cx: pc.cx, cy: pc.cy });
+    const ang = rand(0, TAU);
+    spot = { x: c.x + Math.cos(ang) * LIGHT_R * 2.2, y: c.y + Math.sin(ang) * LIGHT_R * 2.2 };
+  }
+
+  E.x = spot.x;
+  E.y = spot.y;
   E.vx = 0;
   E.vy = 0;
-  E.angle = ang + Math.PI;
+  E.angle = Math.atan2(P.y - E.y, P.x - E.x) + Math.PI;
   E.life = 0;
-  E.dur = 22;
+  E.dur = 26;
   E.mode = 'hunt';
   E.active = true;
   E.opacity = 1;
   E.trail.length = 0;
   E.fade = 1;
   E.sounded = false;
+  E.path = null;
+  E.pathT = 0;
+  E.pathI = 1;
+  E.alertT = 2.4;
+  E.lastSeen = { x: P.x, y: P.y };
+  E.lostT = 0;
+  E.lostNoted = false;
 
   C.amp = Math.max(C.amp, 5);
   Sound.heart(1);
-  showNotice('它在靠近');
+  buzz([30, 70, 30]);
+  showNotice('它在靠近 · 站住别动');
 }
 
 function showNotice(text) {
@@ -1550,6 +1578,13 @@ function showNotice(text) {
   noticeEl.classList.add('on');
   clearTimeout(showNotice._t);
   showNotice._t = setTimeout(() => noticeEl.classList.remove('on'), 3000);
+}
+
+/* 手机震动：只在支持且不是桌面浏览器时触发 */
+function buzz(pattern) {
+  try {
+    if (navigator.vibrate && !/Macintosh|Windows/i.test(navigator.userAgent)) navigator.vibrate(pattern);
+  } catch (e) {}
 }
 
 function finishEntity() {
@@ -1592,28 +1627,91 @@ function updateEntity(dt) {
     }
   } else if (E.mode === 'hunt') {
     E.life += dt;
-    const ang = Math.atan2(P.y - E.y, P.x - E.x);
-    const k = 1 - Math.exp(-dt * 2.4);
-    E.vx = lerp(E.vx, Math.cos(ang) * HUNT_SPEED, k);
-    E.vy = lerp(E.vy, Math.sin(ang) * HUNT_SPEED, k);
-    E.x += E.vx * dt;
-    E.y += E.vy * dt;
+    // 被吓过越多次，它越熟路
+    const hs = HUNT_SPEED + Math.min(28, S.events * 3);
 
+    // —— 它靠声音找你 ——
+    // 你在跑，它就听得见；你贴着墙站住不动，它只能扑向你最后消失的地方
+    const sp = Math.hypot(P.vx, P.vy);
+    const pd = Math.hypot(P.x - E.x, P.y - E.y);
+    if (sp > 32 || pd < 108) {
+      if (E.alertT <= 0) {
+        S.quietT = 0;
+      }
+      E.alertT = 1.8;
+      E.lastSeen = { x: P.x, y: P.y };
+      E.lostT = 0;
+      E.lostNoted = false;
+      E.fade = 1;
+    } else {
+      E.alertT -= dt;
+    }
+
+    // 追不上时的最后一点“听觉余温”：站在它最后听见的位置附近仍会被抓
+    const chasing = E.alertT > 0;
+    const moveSpeed = chasing ? hs : hs * 0.55;
+    const tx = chasing ? P.x : (E.lastSeen ? E.lastSeen.x : P.x);
+    const ty = chasing ? P.y : (E.lastSeen ? E.lastSeen.y : P.y);
+
+    // 每 0.5 秒沿走廊重新算一次路，绝不穿墙
+    E.pathT = (E.pathT || 0) - dt;
+    if (E.pathT <= 0) {
+      E.pathT = 0.5;
+      const from = { cx: Math.floor(E.x / CELL), cy: Math.floor(E.y / CELL) };
+      const to = { cx: Math.floor(tx / CELL), cy: Math.floor(ty / CELL) };
+      E.path = buildPath(from, to, { x: E.x, y: E.y });
+      E.pathI = 1;
+    }
+
+    if (E.path && E.path.length > 1) {
+      let node = E.path[Math.min(E.pathI, E.path.length - 1)];
+      let dx = node.x - E.x, dy = node.y - E.y;
+      let dd = Math.sqrt(dx * dx + dy * dy);
+      while (dd < 7 && E.pathI < E.path.length - 1) {
+        E.pathI++;
+        node = E.path[E.pathI];
+        dx = node.x - E.x; dy = node.y - E.y;
+        dd = Math.sqrt(dx * dx + dy * dy);
+      }
+      if (dd > 0.001) {
+        const nx = dx / dd, ny = dy / dd;
+        E.vx = nx * moveSpeed;
+        E.vy = ny * moveSpeed;
+        E.x += E.vx * dt;
+        E.y += E.vy * dt;
+      }
+    } else {
+      // 同一格：直接贴过来
+      const ang = Math.atan2(P.y - E.y, P.x - E.x);
+      E.x += Math.cos(ang) * moveSpeed * dt;
+      E.y += Math.sin(ang) * moveSpeed * dt;
+      E.vx = Math.cos(ang) * moveSpeed;
+      E.vy = Math.sin(ang) * moveSpeed;
+    }
+
+    const ang = Math.atan2((E.vy || 0.001), (E.vx || 0.001));
     let diff = ang - E.angle;
     while (diff > Math.PI) diff -= TAU;
     while (diff < -Math.PI) diff += TAU;
-    E.angle += diff * (1 - Math.exp(-dt * 4));
+    E.angle += diff * (1 - Math.exp(-dt * 5));
 
-    const ddx = E.x - P.x, ddy = E.y - P.y;
-    const d = Math.sqrt(ddx * ddx + ddy * ddy);
-    if (d < 28) { caught(); return; }
+    const d = Math.hypot(E.x - P.x, E.y - P.y);
+    if (d < 26) { caught(); return; }
 
-    if (E.life > E.dur) {
+    if (!chasing) {
+      E.lostT = (E.lostT || 0) + dt;
+      if (E.lostT > 0.9) {
+        if (!E.lostNoted) { E.lostNoted = true; showNotice('它失去了你的声音'); }
+        E.fade -= dt * 1.1;
+      }
+    }
+
+    if (E.life > E.dur || E.fade <= 0) {
       // 放弃追击，慢慢退走
       E.fade -= dt * 1.4;
       if (E.fade <= 0) {
         finishEntity();
-        S.nextHunt = S.t + rand(52, 80);
+        S.nextHunt = S.t + rand(56, 86);
       }
     }
   }
@@ -1634,6 +1732,7 @@ function caught() {
   S.dieT = 0;
   C.amp = 16;
   Sound.death();
+  buzz([110, 60, 160]);
   E.x = P.x + Math.cos(P.angle) * 6;
   E.y = P.y + Math.sin(P.angle) * 6;
   E.angle = P.angle + Math.PI;
@@ -1675,6 +1774,29 @@ function readBest() {
 
 function writeBest(sec) {
   try { window.localStorage.setItem('circleOfLight.best', String(sec)); } catch (err) { /* ignore */ }
+}
+
+function readEscapes() {
+  try {
+    const n = Number(window.localStorage.getItem('circleOfLight.escapes'));
+    return isFinite(n) && n > 0 ? n : 0;
+  } catch (err) { return 0; }
+}
+
+function addEscape() {
+  try { window.localStorage.setItem('circleOfLight.escapes', String(readEscapes() + 1)); } catch (err) { /* ignore */ }
+}
+
+function updateTitleMeta() {
+  const el = document.getElementById('titleMeta');
+  if (!el) return;
+  const touch = 'ontouchstart' in window;
+  let text = touch ? '拖动屏幕移动 · 触屏' : 'WASD / 方向键 移动 · 迷路了就看左上角「提示」';
+  const best = readBest();
+  if (best !== null) text += ' · 最快 ' + formatTime(best);
+  const esc = readEscapes();
+  if (esc > 0) text += ' · 已逃出 ' + esc + ' 次';
+  el.textContent = text;
 }
 
 /* 电池：散落在离出生点和出口都不近的走道上 */
@@ -1804,15 +1926,18 @@ function showEnd(isWin) {
   Sound.ambience(false);
 
   const sec = S.t;
-  endEyebrow.textContent = isWin ? 'ESCAPED' : 'CAUGHT';
+  const battLeft = Math.round((S.battery || 0) * 100);
+  const escTotal = readEscapes() + (isWin ? 1 : 0);
+  endEyebrow.textContent = isWin ? ('ESCAPED · 第 ' + escTotal + ' 次') : 'CAUGHT';
   endTitle.textContent = isWin ? '你出来了' : '它找到了你';
-  endNote.textContent = isWin
-    ? '门在身后合上。走廊里没有脚步声了。'
-    : '手电筒还亮着，照着空无一物的地面。';
+  endNote.textContent = (isWin ? '门在身后合上，走廊安静了' : '它走了。手电还亮着')
+    + ' · 电量 ' + battLeft + '%';
 
   if (isWin) {
     const prev = readBest();
     if (prev === null || sec < prev) writeBest(sec);
+    addEscape();
+    updateTitleMeta();
   }
 
   statTime.textContent = formatTime(sec);
@@ -1834,6 +1959,7 @@ function updateBattery(dt) {
       b.taken = true;
       S.battery = Math.min(1, S.battery + 0.42);
       Sound.pickup();
+      buzz(16);
       showNotice('手电电量 +42%');
     }
   }
@@ -2014,6 +2140,18 @@ function drawPlayerRim() {
   ctx.beginPath();
   ctx.arc(P.x, P.y, PLAYER_R + 0.8, 0, TAU);
   ctx.stroke();
+
+  // 镜头位置漏出来的一点暖光，让“光是从球里出来的”这件事说得通
+  const lx = P.x + Math.cos(P.angle) * (PLAYER_R - 1.4);
+  const ly = P.y + Math.sin(P.angle) * (PLAYER_R - 1.4);
+  const lg = ctx.createRadialGradient(lx, ly, 0, lx, ly, 9);
+  lg.addColorStop(0, 'rgba(255,236,196,0.55)');
+  lg.addColorStop(0.4, 'rgba(255,226,172,0.22)');
+  lg.addColorStop(1, 'rgba(255,220,160,0)');
+  ctx.fillStyle = lg;
+  ctx.beginPath();
+  ctx.arc(lx, ly, 9, 0, TAU);
+  ctx.fill();
 }
 
 function drawExitGlow(t) {
@@ -2128,6 +2266,23 @@ function drawDoorFx(t) {
     ctx.fillStyle = 'rgba(244,158,116,' + (0.22 + 0.5 * a).toFixed(3) + ')';
     ctx.beginPath(); ctx.arc(ex + off, ey - 19, 1.7, 0, TAU); ctx.fill();
   });
+
+  // 门顶的 EXIT 灯牌：接触不良，时亮时暗
+  const sigFlick = (Math.sin(t * 19.3) > 0.15 ? 1 : 0.42) * (Math.sin(t * 2.7 + 1.1) > -0.6 ? 1 : 0.55);
+  ctx.save();
+  ctx.globalAlpha = (0.30 + 0.5 * near) * sigFlick;
+  const sw = 26, sh = 11;
+  ctx.strokeStyle = 'rgba(226,110,86,0.55)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(ex - sw / 2, ey - 35, sw, sh);
+  ctx.fillStyle = 'rgba(28,8,6,0.5)';
+  ctx.fillRect(ex - sw / 2 + 1, ey - 34, sw - 2, sh - 2);
+  ctx.fillStyle = 'rgba(248,138,108,0.95)';
+  ctx.font = '600 7px "PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('EXIT', ex, ey - 29.4);
+  ctx.restore();
 
   // 门缝里滑过去的一条影
   const slide = ((t * 0.34) % 2) - 1;
@@ -2742,9 +2897,9 @@ window.addEventListener('resize', resize);
 window.addEventListener('orientationchange', () => setTimeout(resize, 180));
 
 if ('ontouchstart' in window) {
-  document.getElementById('titleMeta').textContent = '拖动屏幕移动 · 触屏';
   hintEl.textContent = '拖动屏幕移动 · 找到出口';
 }
+updateTitleMeta();
 
 resize();
 newGame('title');
